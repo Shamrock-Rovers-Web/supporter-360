@@ -1,0 +1,23 @@
+{
+  "name": "supporter360",
+  "version": "1.0.0",
+  "description": "Supporter 360 - Single pane of glass for Shamrock Rovers supporter data",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces",
+    "test": "npm run test --workspaces",
+    "lint": "npm run lint --workspaces",
+    "dev:frontend": "npm run dev --workspace=@supporter-360/frontend"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  }
+}

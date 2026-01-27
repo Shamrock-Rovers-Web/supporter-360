@@ -1,0 +1,22 @@
+{
+  "name": "@supporter360/infrastructure",
+  "version": "1.0.0",
+  "description": "AWS CDK infrastructure for Supporter 360",
+  "main": "lib/index.js",
+  "scripts": {
+    "build": "tsc",
+    "cdk": "cdk",
+    "deploy": "cdk deploy",
+    "synth": "cdk synth"
+  },
+  "dependencies": {
+    "aws-cdk-lib": "^2.114.0",
+    "constructs": "^10.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "aws-cdk": "^2.114.0",
+    "esbuild": "^0.21.5",
+    "typescript": "^5.3.3"
+  }
+}

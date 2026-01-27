@@ -1,0 +1,20 @@
+{
+  "name": "@supporter360/database",
+  "version": "1.0.0",
+  "description": "Database schema and migrations for Supporter 360",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "migrate": "node dist/migrations/run.js",
+    "migrate:create": "node dist/migrations/create.js"
+  },
+  "dependencies": {
+    "pg": "^8.11.3",
+    "dotenv": "^16.3.1"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.10.9",
+    "typescript": "^5.3.3"
+  }
+}
