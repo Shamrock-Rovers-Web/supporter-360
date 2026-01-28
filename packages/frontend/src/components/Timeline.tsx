@@ -254,8 +254,8 @@ function EventCard({ event }: EventCardProps) {
       className={`flex items-start p-4 rounded-lg border-l-4 ${systemConfig.bg} ${systemConfig.border} hover:shadow-md transition-shadow`}
     >
       {/* Icon */}
-      <div className={`w-10 h-10 rounded-full ${systemConfig.bg} border ${systemConfig.border} flex items-center justify-center text-lg mr-4 flex-shrink-0`}>
-        {typeIcon}
+      <div className={`w-10 h-10 rounded-full ${systemConfig.bg} border ${systemConfig.border} flex items-center justify-center mr-4 flex-shrink-0`}>
+        <span className="text-lg" style={{ fontSize: '1.125rem', lineHeight: 1.2 }}>{typeIcon}</span>
       </div>
 
       {/* Content */}

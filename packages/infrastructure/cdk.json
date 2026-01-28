@@ -1,5 +1,5 @@
 {
-  "app": "node bin/app.js",
+  "app": "node cdk.out/bin/app.js",
   "env": {
     "account": "950596328856",
     "region": "eu-west-1"

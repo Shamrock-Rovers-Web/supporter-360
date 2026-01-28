@@ -1,6 +1,21 @@
 # Supporter 360 Deployment Status
 
-**Last Updated**: 2026-01-12
+**Last Updated**: 2026-01-28
+
+## Current Status: 🚀 Ready to Deploy
+
+All code fixes for Lambda bundling and integration configurations are complete. The next deployment will effectively "go live" with the integration backend.
+
+### Pending Action
+**Run Deployment**: `cd packages/infrastructure && npx cdk deploy --require-approval never`
+
+## Environment Configuration
+
+### Integration Status
+- ✅ **Stripe**: Live keys configured (Secret Key + Webhook Secret).
+- ✅ **GoCardless**: Live keys configured (Access Token + Webhook Secret). Environment set to `live`.
+- ✅ **Mailchimp**: API Key configured. Webhook secret generated.
+- ✅ **Infrastructure**: Stack updated to inject these secrets into Lambda environment variables.
 
 ## Deployed Resources
 
@@ -55,9 +70,12 @@
 
 ## Required Next Steps
 
-### 1. Fix Lambda Bundling (Priority: High)
-**Option A**: Update CDK to use bundled code from `dist/` folder
-**Option B**: Add build step that runs `node bundle.cjs` before CDK deploy
+### 1. Fix Lambda Bundling (Status: ✅ Resolved)
+**Resolution**: 
+- Updated root `package.json` to ensure sequential build order (`shared` -> `database` -> `backend`).
+- Verified `npm run build` generates `packages/backend/dist` with bundled handlers.
+- `bundle.cjs` correctly bundles dependencies and exports `handler`.
+- CDK stack already points to `dist`, so next deployment will fix the `ImportModuleError`.
 
 ### 2. Update All Lambda Functions
 Once bundling is fixed, deploy updated code to:

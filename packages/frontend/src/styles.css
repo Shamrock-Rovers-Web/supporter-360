@@ -76,6 +76,13 @@
   html {
     scroll-behavior: smooth;
   }
+
+  /* Fix emoji size */
+  img.emoji, span.emoji {
+    font-size: 1.125em;
+    max-width: 1.5em;
+    max-height: 1.5em;
+  }
 }
 
 /* ============================================================================

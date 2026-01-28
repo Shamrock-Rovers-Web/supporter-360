@@ -28,6 +28,10 @@ export const handler: APIGatewayProxyHandler = async (
         return {
           statusCode: 400,
           body: JSON.stringify({ error: 'Invalid JSON in data field' }),
+          headers: {
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token',
+          },
         };
       }
     } else {
@@ -38,6 +42,10 @@ export const handler: APIGatewayProxyHandler = async (
       return {
         statusCode: 400,
         body: JSON.stringify({ error: 'Missing type' }),
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token',
+        },
       };
     }
 
@@ -48,6 +56,10 @@ export const handler: APIGatewayProxyHandler = async (
       return {
         statusCode: 401,
         body: JSON.stringify({ error: 'Invalid payload' }),
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token',
+        },
       };
     }
 
@@ -118,12 +130,20 @@ export const handler: APIGatewayProxyHandler = async (
     return {
       statusCode: 202,
       body: JSON.stringify({ received: true, payloadId }),
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token',
+      },
     };
   } catch (error) {
     console.error('Mailchimp webhook error:', error);
     return {
       statusCode: 500,
       body: JSON.stringify({ error: 'Internal server error' }),
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token',
+      },
     };
   }
 };

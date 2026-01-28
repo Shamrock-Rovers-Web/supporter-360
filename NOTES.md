@@ -1,5 +1,25 @@
 # Supporter 360 - Current Status Notes
 
+## Date: 2026-01-28 - Build Fixed & Integrations Ready
+
+### Build System Repair
+- Identified that `cdk deploy` was uploading unbundled code, causing `ImportModuleError`.
+- Updated root `package.json` to enforce build order: `shared` -> `database` -> `backend`.
+- Verified `npm run build` now correctly generates `packages/backend/dist` with bundled handlers (esbuild).
+- Verified `supporter360-stack.ts` points to the `dist` directory.
+
+### Integration Audit
+- **Stripe**: Code is complete (`client.ts`, `types.ts`, `stripe.processor.ts`).
+- **GoCardless**: Code is complete (`client.ts`, `types.ts`, `gocardless.processor.ts`).
+- **Mailchimp**: Code is complete (`client.ts`, `types.ts`, `mailchimp.processor.ts`, `mailchimp-syncer.handler.ts`).
+  - Added missing `supporter_mailchimp_aggregates` table to `schema.sql`.
+
+### Next Actions
+- Deploy infrastructure (`cdk deploy`) to apply the schema change and update Lambda code.
+- Verify environment variables/secrets in AWS Console for the new integrations.
+
+---
+
 ## Date: 2025-01-28
 
 ## Deployment Status
