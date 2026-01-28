@@ -1,0 +1,678 @@
+{
+  "last_updated": "2026-01-28T12:00:00Z",
+  "beads": {
+    "T0": {
+      "id": "T0",
+      "title": "Test Infrastructure Foundation",
+      "status": "completed",
+      "dependencies": [],
+      "blocks": ["T1", "T2", "T3", "I1", "I2", "I3", "E1", "E2"],
+      "description": "Set up test infrastructure including docker-compose with PostgreSQL, test database schema, and logging utilities.",
+      "acceptance_criteria": [
+        "docker-compose.yml runs PostgreSQL 15 locally",
+        "Test database auto-initializes with schema on startup",
+        "Custom test logger with detailed logging (timestamp, context, trace IDs)",
+        "Test data seeding utilities with realistic sample data",
+        "Clean slate utilities between test runs",
+        "npm run test:infrastructure starts and stops cleanly"
+      ],
+      "subtasks": [
+        "T0.1: Create docker-compose.yml with PostgreSQL 15, Redis (for future), and test data seeding",
+        "T0.2: Create test/database/setup.ts with connection pooling for test environment",
+        "T0.3: Create test/database/seed.ts with helpers for creating realistic supporter data, events, memberships",
+        "T0.4: Create test/utils/logger.ts with structured logging (timestamp, level, context, trace_id, test_name)",
+        "T0.5: Create test/fixtures/ directory with JSON fixtures for test data (supporters, events, webhooks)",
+        "T0.6: Add npm scripts: test:unit, test:integration, test:e2e, test:infrastructure, test:clean"
+      ],
+      "agent": "testing",
+      "priority": 0,
+      "estimate": "4 hours",
+      "started_at": "2026-01-28T10:00:00Z",
+      "completed_at": "2026-01-28T12:00:00Z"
+    },
+    "T1": {
+      "id": "T1",
+      "title": "Repository Layer Real Unit Tests",
+      "status": "pending",
+      "dependencies": ["T0"],
+      "blocks": ["T2", "I1"],
+      "description": "Create real unit tests for repository layer against actual PostgreSQL test database. NO MOCKS. Tests verify SQL queries, transactions, constraints, and edge cases.",
+      "acceptance_criteria": [
+        "supporter.repository.real.test.ts - 100% coverage of CRUD operations",
+        "event.repository.real.test.ts - 100% coverage of event storage and timeline queries",
+        "membership.repository.real.test.ts - 100% coverage of membership logic",
+        "All tests use real PostgreSQL connection (not mocked)",
+        "Tests verify actual SQL execution via query inspection",
+        "Transaction rollback tests verify data integrity",
+        "Edge cases: NULL handling, empty results, constraint violations, concurrent updates"
+      ],
+      "subtasks": [
+        "T1.1: SupporterRepository - test create(), findById(), search(), merge(), email aliases, linked IDs",
+        "T1.2: EventRepository - test create(), findByExternalId(), getTimeline(), filter options, date ranges",
+        "T1.3: MembershipRepository - test upsert(), getStatus(), paid_up calculation, tier logic",
+        "T1.4: Transaction tests - test rollback on error, concurrent updates, isolation levels",
+        "T1.5: Performance tests - verify query performance with large datasets, add indexes if needed"
+      ],
+      "agent": "testing",
+      "priority": 1,
+      "estimate": "6 hours"
+    },
+    "T2": {
+      "id": "T2",
+      "title": "API Handler Integration Tests",
+      "status": "pending",
+      "dependencies": ["T1"],
+      "blocks": ["I1", "I2"],
+      "description": "Create integration tests for API handlers connecting to real database, repositories, and auth middleware. Tests HTTP request/response cycle with detailed logging.",
+      "acceptance_criteria": [
+        "search.handler.integration.test.ts - query parsing, filtering, pagination, error responses",
+        "profile.handler.integration.test.ts - profile retrieval, not found cases, data aggregation",
+        "timeline.handler.integration.test.ts - timeline filtering, pagination, date grouping",
+        "merge.handler.integration.test.ts - merge validation, conflict detection, audit logging",
+        "All tests use real repositories and database (no mocks except external services)",
+        "Request/response logging with trace IDs for debugging",
+        "Auth middleware integration tests"
+      ],
+      "subtasks": [
+        "T2.1: Create test/setup/api-handler.ts with test API Gateway event builder and response validator",
+        "T2.2: Search handler tests - query validation, field search, type filters, limit/offset, edge cases",
+        "T2.3: Profile handler tests - full profile aggregation, overview cards, linked accounts, flags",
+        "T2.4: Timeline handler tests - event retrieval, type filtering, date range, pagination, metadata",
+        "T2.5: Merge handler tests - validation, conflict detection, atomic merge, audit log creation, rollback scenarios"
+      ],
+      "agent": "testing",
+      "priority": 1,
+      "estimate": "6 hours"
+    },
+    "T3": {
+      "id": "T3",
+      "title": "Webhook Handler Integration Tests",
+      "status": "pending",
+      "dependencies": ["T0"],
+      "blocks": ["I1", "I2"],
+      "description": "Create integration tests for webhook handlers verifying signature validation, JSON parsing, S3 storage, SQS queuing, and error handling with detailed logging.",
+      "acceptance_criteria": [
+        "stripe.handler.integration.test.ts - signature verification, payload parsing, S3 upload, SQS send",
+        "shopify.handler.integration.test.ts - HMAC verification, topic handling, multi-event processing",
+        "gocardless.handler.integration.test.ts - signature validation, events array, individual SQS messages",
+        "mailchimp.handler.integration.test.ts - form data parsing, click events, data field JSON parsing",
+        "Tests use real SQS client (LocalStack or mocked at AWS SDK level), real S3 client (LocalStack)",
+        "Signature verification tests with valid/invalid/tampered signatures",
+        "Error scenarios: malformed JSON, missing headers, signature failures, S3/SQS errors",
+        "Detailed request/response logging with trace IDs"
+      ],
+      "subtasks": [
+        "T3.1: Create test/setup/webhook.ts with webhook event builders for all providers",
+        "T3.2: Create test/utils/signature.ts with signature generation helpers for testing",
+        "T3.3: Stripe webhook tests - valid signature, invalid signature, missing signature, malformed JSON, S3 success/failure, SQS success/failure",
+        "T3.4: Shopify webhook tests - valid HMAC, invalid HMAC, missing topic header, multiple events",
+        "T3.5: GoCardless webhook tests - signature validation, events array processing, empty events",
+        "T3.6: Mailchimp webhook tests - form parsing, JSON data field parsing, click events"
+      ],
+      "agent": "testing",
+      "priority": 1,
+      "estimate": "5 hours"
+    },
+    "T4": {
+      "id": "T4",
+      "title": "Processor Integration Tests",
+      "status": "pending",
+      "dependencies": ["T0"],
+      "blocks": ["I2", "I3"],
+      "description": "Create integration tests for event processors verifying end-to-end data flow from SQS message to database storage, with S3 raw payload retrieval and detailed logging.",
+      "acceptance_criteria": [
+        "stripe.processor.integration.test.ts - SQS to DB flow, S3 payload retrieval, membership creation",
+        "shopify.processor.integration.test.ts - order processing, supporter matching, event creation",
+        "gocardless.processor.integration.test.ts - subscription handling, membership updates, payment tracking",
+        "futureticketing.processor.integration.test.ts - ticket events, supporter matching, stadium entry",
+        "mailchimp.processor.integration.test.ts - click events, tag updates, email matching",
+        "Tests use real SQS (LocalStack), real S3, real PostgreSQL",
+        "Full data flow verification: SQS → processor → DB → verify DB state",
+        "Error handling: DLQ scenarios, retry logic, partial failures",
+        "Detailed logging at each processing step"
+      ],
+      "subtasks": [
+        "T4.1: Create test/setup/processor.ts with SQS message builders and S3 mock setup",
+        "T4.2: Stripe processor tests - payment_intent, invoice, subscription events, membership logic",
+        "T4.3: Shopify processor tests - orders/create, orders/updated, app/uninstalled, customer matching",
+        "T4.4: GoCardless processor tests - payments, subscriptions, mandates, membership status",
+        "T4.5: Future Ticketing processor tests - ticket events, customer matching, stadium entry",
+        "T4.6: Mailchimp processor tests - click events, email lookup, tag updates"
+      ],
+      "agent": "testing",
+      "priority": 1,
+      "estimate": "6 hours"
+    },
+    "T5": {
+      "id": "T5",
+      "title": "Integration Client Tests",
+      "status": "pending",
+      "dependencies": ["T0"],
+      "blocks": ["I2"],
+      "description": "Create tests for external API integration clients (Shopify, Stripe, GoCardless, Future Ticketing, Mailchimp) against sandbox/test APIs or with HTTP mocking at the boundary level.",
+      "acceptance_criteria": [
+        "stripe.client.integration.test.ts - API client methods, error handling, retry logic, rate limiting",
+        "shopify.client.integration.test.ts - order fetch, customer lookup, product queries",
+        "gocardless.client.integration.test.ts - payment retrieval, subscription details, mandate info",
+        "futureticketing.client.integration.test.ts - ticket list, customer data, events",
+        "mailchimp.client.integration.test.ts - member lookup, tag operations, campaign clicks",
+        "Tests either use sandbox APIs or MSW (Mock Service Worker) for HTTP mocking at boundary",
+        "Detailed logging of all HTTP requests/responses with headers and bodies",
+        "Error scenario coverage: timeouts, 500 errors, rate limits, malformed responses"
+      ],
+      "subtasks": [
+        "T5.1: Set up MSW (Mock Service Worker) for HTTP mocking or configure sandbox API credentials",
+        "T5.2: Stripe client tests - retrievePayment, retrieveInvoice, retrieveSubscription, listSubscriptions, errors",
+        "T5.3: Shopify client tests - getOrders, getCustomer, getProducts, search API, pagination",
+        "T5.4: GoCardless client tests - getPayment, getSubscription, listMandates, rate limiting handling",
+        "T5.5: Future Ticketing client tests - getTickets, getCustomer, getEvents, authentication",
+        "T5.6: Mailchimp client tests - getMember, addTag, removeTag, getCampaignClicks, batch operations"
+      ],
+      "agent": "testing",
+      "priority": 2,
+      "estimate": "5 hours"
+    },
+    "I1": {
+      "id": "I1",
+      "title": "E2E Flow: Webhook to Database",
+      "status": "pending",
+      "dependencies": ["T2", "T3"],
+      "blocks": ["E1"],
+      "description": "End-to-end integration test simulating complete webhook flow: external system → webhook handler → S3 → SQS → processor → database. Verify data integrity with detailed logging.",
+      "acceptance_criteria": [
+        "Full webhook flow tests for each provider (Stripe, Shopify, GoCardless, Mailchimp)",
+        "Tests run complete flow: HTTP webhook → handler → queue → processor → DB",
+        "Verify S3 payload storage with correct metadata",
+        "Verify SQS message structure and attributes",
+        "Verify database state after processing (supporter, events, memberships, email_aliases)",
+        "Logging at each step with trace ID for correlation",
+        "Test failure scenarios and recovery (DLQ, retry, rollback)"
+      ],
+      "subtasks": [
+        "I1.1: Create e2e/tests/webhook-flow.ts with test orchestrator that spins up LocalStack and test DB",
+        "I1.2: Stripe webhook flow test - payment webhook → processor → membership created → event stored → supporter created/updated",
+        "I1.3: Shopify webhook flow test - order webhook → processor → supporter matched → order event stored",
+        "I1.4: GoCardless webhook flow test - payment webhook → processor → membership updated → payment event stored",
+        "I1.5: Future Ticketing webhook flow test - ticket webhook → processor → supporter matched → ticket event stored",
+        "I1.6: Mailchimp webhook flow test - click webhook → processor → email matched → click event stored"
+      ],
+      "agent": "testing",
+      "priority": 2,
+      "estimate": "5 hours"
+    },
+    "I2": {
+      "id": "I2",
+      "title": "E2E Flow: API Request to Response",
+      "status": "pending",
+      "dependencies": ["T2"],
+      "blocks": ["E1", "E2"],
+      "description": "End-to-end integration tests simulating real API Gateway requests through to database response. Verify complete request/response cycle with detailed logging.",
+      "acceptance_criteria": [
+        "Search API e2e tests - various queries, filters, pagination, empty results, error cases",
+        "Profile API e2e tests - valid supporter, not found, data aggregation, linked accounts, timeline",
+        "Timeline API e2e tests - filtering, pagination, date ranges, metadata, empty timeline",
+        "Merge API e2e tests - valid merge, self-merge prevention, conflict detection, audit logging",
+        "Auth middleware integration - valid/invalid tokens, role checks, path matching",
+        "Request/response logging with trace IDs for debugging",
+        "Performance tests - measure response times for various query types"
+      ],
+      "subtasks": [
+        "I2.1: Create e2e/tests/api-flow.ts with Lambda invocation simulator and API Gateway event builder",
+        "I2.2: Search API e2e tests - name search, email search, phone search, combined filters, pagination, no results",
+        "I2.3: Profile API e2e tests - full profile with timeline, overview cards, membership details, linked IDs, flags",
+        "I2.4: Timeline API e2e tests - all events, filtered by type, date range, pagination, metadata expansion",
+        "I2.5: Merge API e2e tests - successful merge, self-merge rejection, conflicting data, audit log verification, DB state check"
+      ],
+      "agent": "testing",
+      "priority": 2,
+      "estimate": "4 hours"
+    },
+    "I3": {
+      "id": "I3",
+      "title": "E2E Flow: Multi-System Supporter Journey",
+      "status": "pending",
+      "dependencies": ["I1", "I2"],
+      "blocks": ["E3"],
+      "description": "Complex end-to-end tests simulating realistic supporter journeys across multiple systems. Verify data aggregation and timeline building with detailed logging.",
+      "acceptance_criteria": [
+        "Journey 1: New supporter (Shopify) → Future Ticketing ticket purchase → membership signup → full profile",
+        "Journey 2: Existing supporter (Stripe) → ticket purchase → membership upgrade → timeline verification",
+        "Journey 3: Multi-channel supporter (Shopify + Future Ticketing) → email merge conflict → merge operation",
+        "Journey 4: Season ticket holder with Mailchimp engagement → complete profile with tags",
+        "Each journey test creates realistic test data, processes through multiple systems, verifies final state",
+        "Timeline verification - all events in correct order with proper metadata",
+        "Supporter type classification verification",
+        "Detailed logging at each step with journey ID for traceability"
+      ],
+      "subtasks": [
+        "I3.1: Create e2e/tests/supporter-journey.ts with journey orchestrator and test data generators",
+        "I3.2: Journey 1 - New shop customer: Shopify order webhook → supporter created → Future Ticketing ticket → membership signup",
+        "I3.3: Journey 2 - Stripe member: Stripe payment → Future Ticketing ticket → membership upgrade → verify timeline",
+        "I3.4: Journey 3 - Merge scenario: create two supporters, add Shopify to one, ticket to other, merge, verify consolidated data",
+        "I3.5: Journey 4 - Multi-channel: Shopify orders + Future Ticketing tickets + Mailchimp clicks → full profile verification"
+      ],
+      "agent": "testing",
+      "priority": 2,
+      "estimate": "6 hours"
+    },
+    "E1": {
+      "id": "E1",
+      "title": "Frontend Component Unit Tests",
+      "status": "pending",
+      "dependencies": [],
+      "blocks": ["E2", "E3"],
+      "description": "Create React Testing Library tests for all frontend components. Test user interactions, form handling, data fetching, and error states with detailed logging.",
+      "acceptance_criteria": [
+        "Search page tests - search input, debounce, filters, results display, loading states, empty states",
+        "Profile page tests - header display, overview cards, tabs switching, timeline component, error states",
+        "Admin/Merge page tests - search functionality, supporter selection, merge modal, validation, success/error",
+        "Timeline component tests - event rendering, filter chips, date grouping, load more, empty state",
+        "API hooks tests - useSearch, useSupporterProfile, useSupporterTimeline, useMergeSupporters",
+        "100% component coverage with React Testing Library",
+        "No snapshot tests (prefer behavior verification)",
+        "Accessibility tests (jest-axe or similar)"
+      ],
+      "subtasks": [
+        "E1.1: Setup Vitest + React Testing Library + Testing Library Jest DOM in frontend",
+        "E1.2: Create test/setup/test-utils.ts with custom renderers, mock wrappers, query helpers",
+        "E1.3: Search page tests - search input, filters, results table, pagination, keyboard navigation",
+        "E1.4: Profile page tests - header cards, tab navigation, timeline component, back button, refresh",
+        "E1.5: Admin merge tests - search inputs, supporter cards, merge modal, validation, success/error states",
+        "E1.6: Timeline component tests - event cards, filter toggles, date headers, load more, empty state, error handling"
+      ],
+      "agent": "testing",
+      "priority": 2,
+      "estimate": "5 hours"
+    },
+    "E2": {
+      "id": "E2",
+      "title": "Frontend E2E Tests with Playwright",
+      "status": "pending",
+      "dependencies": ["E1", "I2"],
+      "blocks": ["E3"],
+      "description": "Create Playwright end-to-end tests for critical user flows. Tests run against local or staged backend, with detailed logging and trace capture.",
+      "acceptance_criteria": [
+        "Playwright config with local/staged environment switching",
+        "Flow 1: Search → Select supporter → View profile → Navigate timeline → Return to search",
+        "Flow 2: Search → Apply filters → Clear filters → Verify results update",
+        "Flow 3: Admin page → Search supporters → Select two → Merge → Verify success",
+        "Flow 4: Direct profile URL → View profile → Check all tabs → Verify timeline loads",
+        "Flow 5: Search with no results → Verify empty state, try different filters",
+        "Network request/response logging with trace IDs",
+        "Screenshot capture on failure, video recording option"
+      ],
+      "subtasks": [
+        "E2.1: Install and configure Playwright in frontend package",
+        "E2.2: Create playwright.config.ts with baseURL configuration, tracing, screenshot options",
+        "E2.3: Create tests/e2e/search.spec.ts - search flow, filter interactions, result selection",
+        "E2.4: Create tests/e2e/profile.spec.ts - profile navigation, tab switching, timeline pagination",
+        "E2.5: Create tests/e2e/admin-merge.spec.ts - admin flow, supporter selection, merge modal, success confirmation",
+        "E2.6: Create test helpers for authentication, API mocking (if needed), common page interactions"
+      ],
+      "agent": "testing",
+      "priority": 2,
+      "estimate": "6 hours"
+    },
+    "E3": {
+      "id": "E3",
+      "title": "CI/CD Test Integration",
+      "status": "pending",
+      "dependencies": ["T1", "T2", "T3", "T4", "T5", "I1", "I2", "I3", "E1", "E2"],
+      "blocks": [],
+      "description": "Integrate all tests into CI/CD pipeline with parallel execution, test reporting, and failure notifications. Ensure tests run on every PR and merge.",
+      "acceptance_criteria": [
+        "GitHub Actions or equivalent CI workflow",
+        "Parallel test execution for speed",
+        "Test reporting dashboard (coverage, trends, flaky test detection)",
+        "Slack/email notifications for test failures",
+        "E2E tests run on merge to main (not every PR for speed)",
+        "Unit and integration tests run on every PR",
+        "Coverage reporting with minimum thresholds enforced",
+        "Test infrastructure startup/stop scripts for CI environment"
+      ],
+      "subtasks": [
+        "E3.1: Create .github/workflows/test.yml with unit, integration, and e2e test jobs",
+        "E3.2: Configure parallel test execution with proper test database isolation",
+        "E3.3: Set up coverage reporting (Codecov or similar) with PR comments",
+        "E3.4: Configure test result reporting with status badges",
+        "E3.5: Set up notification system for failures (Slack/webhook)",
+        "E3.6: Add test infrastructure health check to CI pipeline"
+      ],
+      "agent": "testing",
+      "priority": 1,
+      "estimate": "4 hours"
+    },
+    "F1": {
+      "id": "F1",
+      "title": "Shared Type Definitions",
+      "status": "completed",
+      "dependencies": [],
+      "blocks": ["I1", "I2", "I3", "I4", "I5", "A1", "A2", "A3", "A4"],
+      "agent": "foundation",
+      "started_at": "2026-01-27T21:00:00Z",
+      "completed_at": "2026-01-27T21:15:00Z"
+    },
+    "F2": {
+      "id": "F2",
+      "title": "Database Connection Layer",
+      "status": "completed",
+      "dependencies": [],
+      "blocks": ["F3", "W1", "W2", "W3", "W4", "S1", "S2", "S3", "S4"],
+      "agent": "foundation",
+      "started_at": "2026-01-27T21:15:00Z",
+      "completed_at": "2026-01-27T21:30:00Z"
+    },
+    "F3": {
+      "id": "F3",
+      "title": "Repository Base Classes",
+      "status": "completed",
+      "dependencies": ["F1", "F2"],
+      "blocks": ["P1", "P2", "P3", "P4", "P5", "A1", "A2", "A3", "A4", "S3"],
+      "agent": "foundation",
+      "started_at": "2026-01-27T21:30:00Z",
+      "completed_at": "2026-01-27T22:00:00Z"
+    },
+    "I1": {
+      "id": "I1",
+      "title": "Shopify Integration Client",
+      "status": "completed",
+      "dependencies": ["F1"],
+      "blocks": ["W1", "P1"],
+      "agent": "integrations",
+      "started_at": "2026-01-27T22:30:00Z",
+      "completed_at": "2026-01-27T22:45:00Z"
+    },
+    "I2": {
+      "id": "I2",
+      "title": "Stripe Integration Client",
+      "status": "completed",
+      "dependencies": ["F1"],
+      "blocks": ["W2", "P2"],
+      "agent": "integrations",
+      "started_at": "2026-01-27T22:30:00Z",
+      "completed_at": "2026-01-27T22:45:00Z"
+    },
+    "I3": {
+      "id": "I3",
+      "title": "GoCardless Integration Client",
+      "status": "completed",
+      "dependencies": ["F1"],
+      "blocks": ["W3", "P3"],
+      "agent": "integrations",
+      "started_at": "2026-01-27T22:30:00Z",
+      "completed_at": "2026-01-27T22:45:00Z"
+    },
+    "I4": {
+      "id": "I4",
+      "title": "Future Ticketing Integration Client",
+      "status": "completed",
+      "dependencies": ["F1"],
+      "blocks": ["P4", "S1"],
+      "agent": "integrations",
+      "started_at": "2026-01-27T22:30:00Z",
+      "completed_at": "2026-01-27T22:45:00Z"
+    },
+    "I5": {
+      "id": "I5",
+      "title": "Mailchimp Integration Client",
+      "status": "completed",
+      "dependencies": ["F1"],
+      "blocks": ["W4", "P5", "S2"],
+      "agent": "integrations",
+      "started_at": "2026-01-27T22:30:00Z",
+      "completed_at": "2026-01-27T22:45:00Z"
+    },
+    "W1": {
+      "id": "W1",
+      "title": "Shopify Webhook Handler",
+      "status": "completed",
+      "dependencies": ["I1", "F2"],
+      "blocks": ["P1"],
+      "agent": "webhooks",
+      "started_at": "2026-01-27T20:30:00Z",
+      "completed_at": "2026-01-27T20:45:00Z"
+    },
+    "W2": {
+      "id": "W2",
+      "title": "Stripe Webhook Handler",
+      "status": "completed",
+      "dependencies": ["I2", "F2"],
+      "blocks": ["P2"],
+      "agent": "webhooks",
+      "started_at": "2026-01-27T20:30:00Z",
+      "completed_at": "2026-01-27T20:45:00Z"
+    },
+    "W3": {
+      "id": "W3",
+      "title": "GoCardless Webhook Handler",
+      "status": "completed",
+      "dependencies": ["I3", "F2"],
+      "blocks": ["P3"],
+      "agent": "webhooks",
+      "started_at": "2026-01-27T20:30:00Z",
+      "completed_at": "2026-01-27T20:45:00Z"
+    },
+    "W4": {
+      "id": "W4",
+      "title": "Mailchimp Webhook Handler",
+      "status": "completed",
+      "dependencies": ["I5", "F2"],
+      "blocks": ["P5"],
+      "agent": "webhooks",
+      "started_at": "2026-01-27T20:30:00Z",
+      "completed_at": "2026-01-27T20:45:00Z"
+    },
+    "P1": {
+      "id": "P1",
+      "title": "Shopify Event Processor",
+      "status": "completed",
+      "dependencies": ["W1", "F3", "I1"],
+      "blocks": ["UI1", "UI2"],
+      "agent": "processors",
+      "started_at": "2026-01-27T23:30:00Z",
+      "completed_at": "2026-01-27T23:35:00Z"
+    },
+    "P2": {
+      "id": "P2",
+      "title": "Stripe Event Processor",
+      "status": "completed",
+      "dependencies": ["W2", "F3", "I2"],
+      "blocks": ["UI2", "S4"],
+      "agent": "processors",
+      "started_at": "2026-01-27T23:35:00Z",
+      "completed_at": "2026-01-27T23:37:00Z"
+    },
+    "P3": {
+      "id": "P3",
+      "title": "GoCardless Event Processor",
+      "status": "completed",
+      "dependencies": ["W3", "F3", "I3"],
+      "blocks": ["UI2", "S4"],
+      "agent": "processors",
+      "started_at": "2026-01-27T23:37:00Z",
+      "completed_at": "2026-01-27T23:39:00Z"
+    },
+    "P4": {
+      "id": "P4",
+      "title": "Future Ticketing Event Processor",
+      "status": "completed",
+      "dependencies": ["I4", "F3"],
+      "blocks": ["UI2", "S3", "S4"],
+      "agent": "processors",
+      "started_at": "2026-01-27T23:39:00Z",
+      "completed_at": "2026-01-27T23:42:00Z"
+    },
+    "P5": {
+      "id": "P5",
+      "title": "Mailchimp Event Processor",
+      "status": "completed",
+      "dependencies": ["W4", "F3", "I5"],
+      "blocks": ["UI2", "S4"],
+      "agent": "processors",
+      "started_at": "2026-01-27T23:42:00Z",
+      "completed_at": "2026-01-27T23:45:00Z"
+    },
+    "A1": {
+      "id": "A1",
+      "title": "Search API",
+      "status": "completed",
+      "dependencies": ["F3"],
+      "blocks": ["UI1"],
+      "agent": "api",
+      "started_at": "2026-01-27T23:00:00Z",
+      "completed_at": "2026-01-27T23:15:00Z"
+    },
+    "A2": {
+      "id": "A2",
+      "title": "Profile API",
+      "status": "completed",
+      "dependencies": ["F3"],
+      "blocks": ["UI2"],
+      "agent": "api",
+      "started_at": "2026-01-27T23:15:00Z",
+      "completed_at": "2026-01-27T23:20:00Z"
+    },
+    "A3": {
+      "id": "A3",
+      "title": "Timeline API",
+      "status": "completed",
+      "dependencies": ["F3"],
+      "blocks": ["UI3"],
+      "agent": "api",
+      "started_at": "2026-01-27T23:20:00Z",
+      "completed_at": "2026-01-27T23:25:00Z"
+    },
+    "A4": {
+      "id": "A4",
+      "title": "Merge API",
+      "status": "completed",
+      "dependencies": ["F3"],
+      "blocks": ["UI4"],
+      "agent": "api",
+      "started_at": "2026-01-27T23:25:00Z",
+      "completed_at": "2026-01-27T23:30:00Z"
+    },
+    "S1": {
+      "id": "S1",
+      "title": "Future Ticketing Poller",
+      "status": "completed",
+      "dependencies": ["I4", "P4"],
+      "blocks": [],
+      "agent": "scheduled",
+      "started_at": "2026-01-27T23:45:00Z",
+      "completed_at": "2026-01-27T23:55:00Z"
+    },
+    "S2": {
+      "id": "S2",
+      "title": "Mailchimp Tag Syncer",
+      "status": "completed",
+      "dependencies": ["I5", "P5"],
+      "blocks": [],
+      "agent": "scheduled",
+      "started_at": "2026-01-27T23:45:00Z",
+      "completed_at": "2026-01-27T23:55:00Z"
+    },
+    "S3": {
+      "id": "S3",
+      "title": "Supporter Type Classifier",
+      "status": "completed",
+      "dependencies": ["F3"],
+      "blocks": [],
+      "agent": "scheduled",
+      "started_at": "2026-01-27T23:45:00Z",
+      "completed_at": "2026-01-27T23:50:00Z"
+    },
+    "S4": {
+      "id": "S4",
+      "title": "Reconciliation Job",
+      "status": "completed",
+      "dependencies": ["I1", "I2", "I3", "I4", "P1", "P2", "P3", "P4"],
+      "blocks": [],
+      "agent": "scheduled",
+      "started_at": "2026-01-27T23:45:00Z",
+      "completed_at": "2026-01-27T23:55:00Z"
+    },
+    "UI1": {
+      "id": "UI1",
+      "title": "Search Page Component",
+      "status": "completed",
+      "dependencies": ["A1"],
+      "blocks": [],
+      "agent": "frontend",
+      "started_at": "2026-01-28T00:00:00Z",
+      "completed_at": "2026-01-28T00:10:00Z"
+    },
+    "UI2": {
+      "id": "UI2",
+      "title": "Profile Page Component",
+      "status": "completed",
+      "dependencies": ["A2"],
+      "blocks": [],
+      "agent": "frontend",
+      "started_at": "2026-01-28T00:10:00Z",
+      "completed_at": "2026-01-28T00:20:00Z"
+    },
+    "UI3": {
+      "id": "UI3",
+      "title": "Timeline Component",
+      "status": "completed",
+      "dependencies": ["A3"],
+      "blocks": [],
+      "agent": "frontend",
+      "started_at": "2026-01-28T00:20:00Z",
+      "completed_at": "2026-01-28T00:25:00Z"
+    },
+    "UI4": {
+      "id": "UI4",
+      "title": "Merge UI Component",
+      "status": "completed",
+      "dependencies": ["A4"],
+      "blocks": [],
+      "agent": "frontend",
+      "started_at": "2026-01-28T00:25:00Z",
+      "completed_at": "2026-01-28T00:30:00Z"
+    }
+  },
+  "agents": {
+    "foundation": {
+      "name": "Foundation Agent",
+      "beads": ["F1", "F2", "F3"],
+      "status": "completed"
+    },
+    "integrations": {
+      "name": "Integrations Agent",
+      "beads": ["I1", "I2", "I3", "I4", "I5"],
+      "status": "completed"
+    },
+    "webhooks": {
+      "name": "Webhooks Agent",
+      "beads": ["W1", "W2", "W3", "W4"],
+      "status": "completed"
+    },
+    "processors": {
+      "name": "Processors Agent",
+      "beads": ["P1", "P2", "P3", "P4", "P5"],
+      "status": "completed"
+    },
+    "api": {
+      "name": "API Agent",
+      "beads": ["A1", "A2", "A3", "A4"],
+      "status": "completed"
+    },
+    "scheduled": {
+      "name": "Scheduled Jobs Agent",
+      "beads": ["S1", "S2", "S3", "S4"],
+      "status": "completed"
+    },
+    "frontend": {
+      "name": "Frontend Agent",
+      "beads": ["UI1", "UI2", "UI3", "UI4"],
+      "status": "completed"
+    },
+    "testing": {
+      "name": "Testing Agent",
+      "beads": ["T0", "T1", "T2", "T3", "T4", "T5"],
+      "status": "in_progress"
+    }
+  }
+}
