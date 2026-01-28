@@ -1,4 +1,5 @@
 import axios, { AxiosError } from 'axios';
+import { SupporterType } from '@supporter360/shared';
 
 const API_URL = import.meta.env.VITE_API_URL || '';
 const API_KEY = import.meta.env.VITE_API_KEY || '';
@@ -7,6 +8,27 @@ export interface ApiError {
   error: string;
   code?: string;
   details?: any;
+}
+
+export interface SearchParams {
+  q: string;
+  supporter_types?: SupporterType[];
+  limit?: number;
+  offset?: number;
+}
+
+export interface SearchResponse {
+  results: Array<{
+    supporter_id: string;
+    name: string | null;
+    email: string | null;
+    supporter_type: SupporterType;
+    last_ticket_order_date: string | null;
+    last_shop_order_date: string | null;
+    membership_status: string | null;
+  }>;
+  total: number;
+  has_more: boolean;
 }
 
 export const apiClient = axios.create({
@@ -25,11 +47,17 @@ apiClient.interceptors.response.use(
   }
 );
 
-export async function searchSupporters(query: string, field?: string) {
-  const params = new URLSearchParams({ q: query });
-  if (field) params.set('field', field);
-  const response = await apiClient.get(`/search?${params}`);
-  return response.data.data;
+export async function searchSupporters(params: SearchParams): Promise<SearchResponse> {
+  const searchParams = new URLSearchParams();
+  searchParams.set('q', params.q);
+  if (params.supporter_types?.length) {
+    params.supporter_types.forEach(t => searchParams.append('supporter_type', t));
+  }
+  if (params.limit) searchParams.set('limit', params.limit.toString());
+  if (params.offset) searchParams.set('offset', params.offset.toString());
+
+  const response = await apiClient.get(`/search?${searchParams}`);
+  return response.data;
 }
 
 export async function getSupporterProfile(id: string) {
@@ -37,19 +65,29 @@ export async function getSupporterProfile(id: string) {
   return response.data.data;
 }
 
-export async function getSupporterTimeline(id: string, eventTypes?: string[]) {
+export async function getSupporterTimeline(id: string, eventTypes?: string[], limit?: number, offset?: number) {
   const params = new URLSearchParams();
   if (eventTypes?.length) {
     eventTypes.forEach(t => params.append('event_types', t));
   }
+  if (limit) params.set('limit', limit.toString());
+  if (offset) params.set('offset', offset.toString());
+
   const response = await apiClient.get(`/supporters/${id}/timeline?${params}`);
-  return response.data.data;
+  return response.data;
 }
 
-export async function mergeSupporters(primaryId: string, secondaryId: string) {
+export async function mergeSupporters(sourceId: string, targetId: string, reason?: string) {
   const response = await apiClient.post('/admin/merge', {
-    primary_supporter_id: primaryId,
-    secondary_supporter_id: secondaryId,
+    source_id: sourceId,
+    target_id: targetId,
+    reason,
   });
-  return response.data.data;
+  return response.data;
+}
+
+export async function searchSupportersForMerge(query: string): Promise<SearchResponse['results']> {
+  const params = new URLSearchParams({ q: query, limit: '10' });
+  const response = await apiClient.get(`/search?${params}`);
+  return response.data.results;
 }
