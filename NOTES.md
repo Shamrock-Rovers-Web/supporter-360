@@ -1,6 +1,51 @@
 # Supporter 360 - Current Status Notes
 
-## Date: 2026-01-28 - Build Fixed & Integrations Ready
+## Date: 2026-01-28 - Deployed to Production! 🚀
+
+### Deployment Complete
+- **All 18 Lambda functions** updated with bundled code
+- **CORS headers** added to all API responses
+- **Frontend** deployed and accessible at https://d2aoqa35scit03.cloudfront.net
+- **API Gateway** live at https://2u9a7una05.execute-api.eu-west-1.amazonaws.com/prod/
+
+### Integration Configuration Status
+| Integration | Code | Webhook URL | Status |
+|-------------|------|-------------|--------|
+| **Stripe** | ✅ Complete | `/webhooks/stripe` | Ready to configure |
+| **GoCardless** | ✅ Complete | `/webhooks/gocardless` | Ready to configure |
+| **Mailchimp** | ✅ Complete | `/webhooks/mailchimp` | Ready to configure |
+| **Shopify** | ✅ Complete | EventBridge | Already configured |
+| **Future Ticketing** | ✅ Working | Polling every 5min | ✅ Live |
+
+### Fixes Applied
+1. **CORS Issue**: Added `Access-Control-Allow-Origin: *` headers to all API responses
+2. **Build System**: Fixed esbuild platform mismatch (reinstalled for Linux)
+3. **CDK Config**: Updated to use `cdk.out/bin/app.js` compiled path
+4. **Database Package**: Fixed "echoNo" typo in build script
+5. **Jest Setup**: Added `export {}` for module declaration
+6. **Icon Sizing**: Constrained emoji sizes in Timeline component
+
+### Known Issues
+- **Mailchimp Webhook**: Returns 403 when adding - need to debug webhook validation
+- **Unit Tests**: Outdated (handler signature changed from 2 args to 1 arg) - non-blocking
+
+### Pending for Tomorrow
+- Debug Mailchimp webhook 403 error
+- Configure Stripe, GoCardless, Mailchimp webhooks in external dashboards
+- Verify GoCardless secret padding (40 chars minimum with zeros)
+- Update unit tests to match new handler signature
+
+### Deployed Infrastructure
+```
+API URL:       https://2u9a7una05.execute-api.eu-west-1.amazonaws.com/prod/
+Frontend:      https://d2aoqa35scit03.cloudfront.net
+Database:      supporter360stack-supporter360database3a977b01-tdx3anttjiwx.cmfwmmgu7sye.eu-west-1.rds.amazonaws.com
+Region:        eu-west-1
+Stack ARN:     arn:aws:cloudformation:eu-west-1:950596328856:stack/Supporter360Stack/c49bd340-fc38-11f0-b050-0af264d57525
+```
+
+---
+
 
 ### Build System Repair
 - Identified that `cdk deploy` was uploading unbundled code, causing `ImportModuleError`.
