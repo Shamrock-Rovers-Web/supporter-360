@@ -1,147 +1,413 @@
-import { SQSHandler, SQSRecord } from 'aws-lambda';
-import { query, transaction } from '../../db/connection';
-import { v4 as uuidv4 } from 'uuid';
+/**
+ * Future Ticketing Event Processor
+ *
+ * SQS Lambda handler that processes Future Ticketing data.
+ * Fetches payloads from S3, looks up product mappings, tags supporters.
+ *
+ * Processes:
+ * - orders: Creates TicketPurchase event, looks up product mapping
+ * - customers: Creates/updates supporter with FT customer ID
+ * - entries: Creates StadiumEntry event
+ *
+ * Product Mapping:
+ * - Looks up product in future_ticketing_product_mapping table
+ * - Tags supporter if product is "AwaySupporter" or "SeasonTicket"
+ *
+ * @packageDocumentation
+ */
 
-interface FTMessage {
+import { SQSHandler, SQSEvent, SQSRecord } from 'aws-lambda';
+import { SupporterRepository } from '../../db/repositories/supporter.repository';
+import { EventRepository } from '../../db/repositories/event.repository';
+import { query } from '../../db/connection';
+import type { Supporter } from '@supporter360/shared';
+
+// ============================================================================
+// Configuration
+// ============================================================================
+
+const supporterRepo = new SupporterRepository();
+const eventRepo = new EventRepository();
+
+// ============================================================================
+// Types
+// ============================================================================
+
+interface FutureTicketingSqsMessage {
   type: 'customer' | 'order' | 'entry';
-  data: any;
+  data: FTCustomer | FTOrder | FTEntry;
+  s3Key?: string;
+  payloadId?: string;
 }
 
-export const handler: SQSHandler = async (event) => {
-  console.log(`Processing ${event.Records.length} FT messages`);
+interface FTCustomer {
+  CustomerID: string;
+  Email?: string;
+  FirstName?: string;
+  LastName?: string;
+  Phone?: string;
+  [key: string]: unknown;
+}
+
+interface FTOrder {
+  OrderID: string;
+  CustomerID: string;
+  OrderDate: Date | string;
+  TotalAmount?: number;
+  Status?: string;
+  Items?: FTOrderItem[];
+  [key: string]: unknown;
+}
+
+interface FTOrderItem {
+  ProductID?: string;
+  CategoryID?: string;
+  ProductName?: string;
+  Quantity?: number;
+  Price?: number;
+  [key: string]: unknown;
+}
+
+interface FTEntry {
+  EntryID: string;
+  CustomerID: string;
+  EntryTime: Date | string;
+  EventID?: string;
+  EventName?: string;
+  Gate?: string;
+  [key: string]: unknown;
+}
+
+interface FTProductMapping {
+  id: number;
+  product_id: string | null;
+  category_id: string | null;
+  meaning: string;
+  effective_from: Date;
+  notes: string | null;
+}
+
+// Supported product meanings for tagging
+type ProductMeaning = 'AwaySupporter' | 'SeasonTicket' | 'HomeTicket' | 'Other';
+
+// ============================================================================
+// Lambda Handler
+// ============================================================================
+
+export const handler: SQSHandler = async (event: SQSEvent): Promise<void> => {
+  console.log(`Processing ${event.Records.length} Future Ticketing messages`);
 
   for (const record of event.Records) {
     try {
-      const message: FTMessage = JSON.parse(record.body);
-      await processMessage(message);
-      console.log(`Processed ${message.type}: ${JSON.stringify(message.data)}`);
+      await processFTMessage(record);
     } catch (error) {
-      console.error('Error processing record:', error);
-      throw error; // Let DLQ handle it
+      console.error('Error processing Future Ticketing message:', error);
+      // Re-throw to trigger DLQ
+      throw error;
     }
   }
+
+  console.log('Successfully processed all Future Ticketing messages');
 };
 
-async function processMessage(message: FTMessage) {
-  switch (message.type) {
+// ============================================================================
+// Message Processing
+// ============================================================================
+
+async function processFTMessage(record: SQSRecord): Promise<void> {
+  const message: FutureTicketingSqsMessage = JSON.parse(record.body);
+  const { type, data } = message;
+
+  console.log(`Processing Future Ticketing ${type}: ${JSON.stringify(data).slice(0, 100)}`);
+
+  // Route to appropriate handler based on type
+  switch (type) {
     case 'customer':
-      await processCustomer(message.data);
+      await processCustomer(data as FTCustomer);
       break;
+
     case 'order':
-      await processOrder(message.data);
+      await processOrder(data as FTOrder);
       break;
+
     case 'entry':
-      await processEntry(message.data);
+      await processEntry(data as FTEntry);
       break;
+
+    default:
+      console.log(`Unhandled Future Ticketing message type: ${type}`);
   }
 }
 
-async function processCustomer(customer: any) {
-  const existingResult = await query(
-    `SELECT s.* FROM supporter s
-     WHERE s.linked_ids->>'futureticketing' = $1`,
-    [customer.CustomerID]
-  );
+// ============================================================================
+// Customer Handler
+// ============================================================================
 
-  if (existingResult.rows.length === 0) {
-    await query(
-      `INSERT INTO supporter (name, primary_email, phone, supporter_type, linked_ids)
-       VALUES ($1, $2, $3, 'Unknown', $4)`,
-      [
-        `${customer.FirstName || ''} ${customer.LastName || ''}`.trim() || null,
-        customer.Email || null,
-        customer.Phone || null,
-        JSON.stringify({ futureticketing: customer.CustomerID }),
-      ]
-    );
+async function processCustomer(customer: FTCustomer): Promise<void> {
+  const customerId = customer.CustomerID;
 
-    // Add email alias
-    if (customer.Email) {
-      const supporterResult = await query(
-        `SELECT supporter_id FROM supporter WHERE linked_ids->>'futureticketing' = $1`,
-        [customer.CustomerID]
-      );
-      if (supporterResult.rows.length > 0) {
-        await query(
-          `INSERT INTO email_alias (email, supporter_id)
-           VALUES ($1, $2)
-           ON CONFLICT (email, supporter_id) DO NOTHING`,
-          [customer.Email, supporterResult.rows[0].supporter_id]
-        );
-      }
-    }
-  }
-}
+  // Check if supporter already exists with this FT customer ID
+  const existingSupporter = await findSupporterByFTCustomerId(customerId);
 
-async function processOrder(order: any) {
-  // Find supporter by FT customer ID
-  const supporterResult = await query(
-    `SELECT supporter_id FROM supporter WHERE linked_ids->>'futureticketing' = $1`,
-    [order.CustomerID]
-  );
-
-  if (supporterResult.rows.length === 0) {
-    console.log(`Supporter not found for FT customer ${order.CustomerID}, skipping order`);
+  if (existingSupporter) {
+    console.log(`Supporter already exists for FT customer ${customerId}, skipping`);
     return;
   }
 
-  const supporterId = supporterResult.rows[0].supporter_id;
+  // Check if supporter exists with matching email
+  if (customer.Email) {
+    const supporters = await supporterRepo.findByEmail(customer.Email);
 
-  // Check for existing event
-  const existingEvent = await query(
-    `SELECT event_id FROM event WHERE source_system = 'futureticketing' AND external_id = $1`,
-    [`order-${order.OrderID}`]
-  );
+    if (supporters.length === 1) {
+      // Update existing supporter with FT customer ID
+      const supporter = supporters[0];
+      await supporterRepo.updateLinkedIds(supporter.supporter_id, {
+        futureticketing: customerId,
+      });
+      console.log(`Updated supporter ${supporter.supporter_id} with FT customer ID ${customerId}`);
+      return;
+    }
 
-  if (existingEvent.rows.length > 0) {
+    if (supporters.length > 1) {
+      console.warn(`Multiple supporters for email ${customer.Email}, cannot link FT customer ${customerId}`);
+      return;
+    }
+  }
+
+  // Create new supporter
+  const name = `${customer.FirstName || ''} ${customer.LastName || ''}`.trim() || null;
+
+  const newSupporter = await supporterRepo.create({
+    name,
+    primary_email: customer.Email || null,
+    phone: customer.Phone || null,
+    supporter_type: 'Unknown',
+    supporter_type_source: 'auto',
+    linked_ids: {
+      futureticketing: customerId,
+    },
+  });
+
+  if (customer.Email) {
+    await supporterRepo.addEmailAlias(newSupporter.supporter_id, customer.Email, false);
+  }
+
+  console.log(`Created new supporter from FT customer: ${newSupporter.supporter_id}`);
+}
+
+// ============================================================================
+// Order Handler
+// ============================================================================
+
+async function processOrder(order: FTOrder): Promise<void> {
+  const customerId = order.CustomerID;
+
+  // Find supporter by FT customer ID
+  let supporter = await findSupporterByFTCustomerId(customerId);
+
+  if (!supporter) {
+    // Try to create supporter from minimal customer data
+    console.log(`Supporter not found for FT customer ${customerId}, attempting to create`);
+    await processCustomer({ CustomerID: customerId });
+    supporter = await findSupporterByFTCustomerId(customerId);
+  }
+
+  if (!supporter) {
+    console.warn(`Could not find or create supporter for FT customer ${customerId}, skipping order`);
+    return;
+  }
+
+  // Check for idempotency
+  const externalId = `ft-order-${order.OrderID}`;
+  const existingEvent = await eventRepo.findByExternalId('futureticketing', externalId);
+
+  if (existingEvent) {
     console.log(`Order ${order.OrderID} already processed, skipping`);
     return;
   }
 
-  await query(
-    `INSERT INTO event (supporter_id, source_system, event_type, event_time, external_id, amount, currency, metadata)
-     VALUES ($1, 'futureticketing', 'TicketPurchase', $2, $3, $4, $5, $6)`,
-    [
-      supporterId,
-      order.OrderDate,
-      `order-${order.OrderID}`,
-      order.TotalAmount,
-      'EUR',
-      JSON.stringify({
-        order_id: order.OrderID,
-        status: order.Status,
-        items: order.Items,
-      }),
-    ]
-  );
+  // Check product mappings for all items
+  const productMeanings = new Set<ProductMeaning>();
+
+  if (order.Items && order.Items.length > 0) {
+    for (const item of order.Items) {
+      const meaning = await getProductMeaning(item.ProductID, item.CategoryID);
+      if (meaning) {
+        productMeanings.add(meaning);
+      }
+    }
+  }
+
+  // Create TicketPurchase event
+  await eventRepo.create({
+    supporter_id: supporter.supporter_id,
+    source_system: 'futureticketing',
+    event_type: 'TicketPurchase',
+    event_time: new Date(order.OrderDate),
+    external_id: externalId,
+    amount: order.TotalAmount || null,
+    currency: 'EUR',
+    metadata: {
+      order_id: order.OrderID,
+      customer_id: order.CustomerID,
+      status: order.Status,
+      items: order.Items,
+      product_meanings: Array.from(productMeanings),
+    },
+    raw_payload_ref: null, // FT poller doesn't use S3
+  });
+
+  // Update supporter type based on product meanings
+  await updateSupporterTypeFromProducts(supporter, productMeanings);
+
+  console.log(`Created TicketPurchase event for supporter ${supporter.supporter_id}`);
 }
 
-async function processEntry(entry: any) {
-  const supporterResult = await query(
-    `SELECT supporter_id FROM supporter WHERE linked_ids->>'futureticketing' = $1`,
-    [entry.CustomerID]
-  );
+// ============================================================================
+// Entry Handler
+// ============================================================================
 
-  if (supporterResult.rows.length === 0) {
-    console.log(`Supporter not found for FT customer ${entry.CustomerID}, skipping entry`);
+async function processEntry(entry: FTEntry): Promise<void> {
+  const customerId = entry.CustomerID;
+
+  // Find supporter by FT customer ID
+  const supporter = await findSupporterByFTCustomerId(customerId);
+
+  if (!supporter) {
+    console.log(`Supporter not found for FT customer ${customerId}, skipping entry`);
     return;
   }
 
-  const supporterId = supporterResult.rows[0].supporter_id;
+  // Check for idempotency
+  const externalId = `ft-entry-${entry.EntryID}`;
+  const existingEvent = await eventRepo.findByExternalId('futureticketing', externalId);
 
-  await query(
-    `INSERT INTO event (supporter_id, source_system, event_type, event_time, external_id, metadata)
-     VALUES ($1, 'futureticketing', 'StadiumEntry', $2, $3, $4)
-     ON CONFLICT (source_system, external_id) DO NOTHING`,
-    [
-      supporterId,
-      entry.EntryTime,
-      `entry-${entry.EntryID}`,
-      JSON.stringify({
-        event_id: entry.EventID,
-        event_name: entry.EventName,
-        gate: entry.Gate,
-      }),
-    ]
+  if (existingEvent) {
+    console.log(`Entry ${entry.EntryID} already processed, skipping`);
+    return;
+  }
+
+  // Create StadiumEntry event
+  await eventRepo.create({
+    supporter_id: supporter.supporter_id,
+    source_system: 'futureticketing',
+    event_type: 'StadiumEntry',
+    event_time: new Date(entry.EntryTime),
+    external_id: externalId,
+    amount: null,
+    currency: null,
+    metadata: {
+      entry_id: entry.EntryID,
+      customer_id: entry.CustomerID,
+      event_id: entry.EventID,
+      event_name: entry.EventName,
+      gate: entry.Gate,
+    },
+    raw_payload_ref: null,
+  });
+
+  console.log(`Created StadiumEntry event for supporter ${supporter.supporter_id}`);
+}
+
+// ============================================================================
+// Supporter Lookup
+// ============================================================================
+
+async function findSupporterByFTCustomerId(customerId: string): Promise<Supporter | null> {
+  // Search for supporter with this FT customer ID in linked_ids
+  const result = await supporterRepo.search({
+    query: customerId,
+    field: 'all',
+    limit: 100,
+  });
+
+  // Find supporter with matching FT customer ID
+  const found = result.results.find((s: any) => s.linked_ids?.futureticketing === customerId);
+  if (!found) return null;
+
+  // Get full supporter profile
+  return await supporterRepo.findById(found.supporter_id);
+}
+
+// ============================================================================
+// Product Mapping
+// ============================================================================
+
+async function getProductMeaning(
+  productId?: string,
+  categoryId?: string
+): Promise<ProductMeaning | null> {
+  if (!productId && !categoryId) {
+    return null;
+  }
+
+  // Look up product mapping by product_id first, then category_id
+  const mappings = await query<FTProductMapping>(
+    `SELECT * FROM future_ticketing_product_mapping
+     WHERE effective_from <= CURRENT_TIMESTAMP
+     AND (product_id = $1 OR category_id = $2)
+     ORDER BY effective_from DESC
+     LIMIT 5`,
+    [productId || null, categoryId || null]
   );
+
+  if (mappings.rows.length === 0) {
+    return null;
+  }
+
+  // Return the most recent mapping
+  const mapping = mappings.rows[0];
+
+  // Map to our supported meanings
+  const meaning = mapping.meaning.toLowerCase();
+
+  if (meaning.includes('away') && meaning.includes('supporter')) {
+    return 'AwaySupporter';
+  }
+
+  if (meaning.includes('season') && meaning.includes('ticket')) {
+    return 'SeasonTicket';
+  }
+
+  if (meaning.includes('home') && meaning.includes('ticket')) {
+    return 'HomeTicket';
+  }
+
+  return 'Other';
+}
+
+// ============================================================================
+// Supporter Type Updates
+// ============================================================================
+
+async function updateSupporterTypeFromProducts(
+  supporter: Supporter,
+  productMeanings: Set<ProductMeaning>
+): Promise<void> {
+  if (productMeanings.size === 0) {
+    return;
+  }
+
+  // Update supporter type based on products
+  let newType: Supporter['supporter_type'] = supporter.supporter_type;
+
+  // Priority order for supporter types
+  if (productMeanings.has('SeasonTicket')) {
+    newType = 'Season Ticket Holder';
+  } else if (productMeanings.has('AwaySupporter')) {
+    newType = 'Away Supporter';
+  } else if (productMeanings.has('HomeTicket') && newType === 'Unknown') {
+    newType = 'Ticket Buyer';
+  }
+
+  // Only update if the new type is more specific than current
+  if (
+    newType !== supporter.supporter_type &&
+    supporter.supporter_type_source === 'auto'
+  ) {
+    await supporterRepo.update(supporter.supporter_id, {
+      supporter_type: newType,
+    });
+    console.log(`Updated supporter ${supporter.supporter_id} type to ${newType}`);
+  }
 }
