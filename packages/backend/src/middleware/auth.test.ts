@@ -1,11 +1,17 @@
+import { describe, it, expect, beforeEach, mock } from 'bun:test';
 import { validateApiKey, AuthContext } from './auth';
-import { query } from '../db/connection';
 
-jest.mock('../db/connection');
+// Mock the db/connection module
+const mockQuery = mock(() => Promise.resolve({ rows: [] }));
+
+// Need to mock before import
+mock.module('../db/connection', () => ({
+  query: mockQuery,
+}));
 
 describe('Auth Middleware', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    mockQuery.mockClear();
   });
 
   const mockApiKeys = {
@@ -14,7 +20,7 @@ describe('Auth Middleware', () => {
   };
 
   it('should reject request with no API key', async () => {
-    (query as jest.Mock).mockResolvedValue({
+    mockQuery.mockResolvedValueOnce({
       rows: [{ value: mockApiKeys }]
     });
 
@@ -29,7 +35,7 @@ describe('Auth Middleware', () => {
   });
 
   it('should reject invalid API key', async () => {
-    (query as jest.Mock).mockResolvedValue({
+    mockQuery.mockResolvedValueOnce({
       rows: [{ value: mockApiKeys }]
     });
 
@@ -44,7 +50,7 @@ describe('Auth Middleware', () => {
   });
 
   it('should authorize staff key for staff endpoint', async () => {
-    (query as jest.Mock).mockResolvedValue({
+    mockQuery.mockResolvedValueOnce({
       rows: [{ value: mockApiKeys }]
     });
 
@@ -62,7 +68,7 @@ describe('Auth Middleware', () => {
   });
 
   it('should reject staff key for admin endpoint', async () => {
-    (query as jest.Mock).mockResolvedValue({
+    mockQuery.mockResolvedValueOnce({
       rows: [{ value: mockApiKeys }]
     });
 

@@ -47,11 +47,18 @@ export async function validateApiKey(
   }
 
   // Determine endpoint pattern
+  // Normalize path by replacing UUID-like segments and numeric IDs with {id}
   const method = event.httpMethod;
   const path = event.path;
-  const endpointPattern = `${method} ${path.replace(/\/[^/]+/g, m =>
-    m.startsWith('/:') ? '/{id}' : m
-  )}`;
+
+  // Replace path segments that look like IDs with {id}
+  // This handles UUIDs and numeric IDs (e.g., /supporters/123 -> /supporters/{id})
+  const normalizedPath = path
+    .replace(/\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, '/{id}')
+    .replace(/\/\d+(?:\/|$)/g, '/{id}/')
+    .replace(/\/{id}\/$/, '/{id}');
+
+  const endpointPattern = `${method} ${normalizedPath}`;
 
   // Check role-based access
   const requiredRole = ADMIN_ENDPOINTS.has(endpointPattern) ? 'admin' : 'staff';
@@ -71,7 +78,7 @@ export function requireAuth(handler: (event: APIGatewayProxyEvent, auth: AuthCon
     const authResult = await validateApiKey(event);
 
     if (!authResult.authorized) {
-      return authResult.response;
+      return (authResult as any).response;
     }
 
     return handler(event, authResult.context);
