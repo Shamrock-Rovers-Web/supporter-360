@@ -1,0 +1,116 @@
+[
+  {
+    "event_id": "10000000-0000-0000-0000-000000000001",
+    "supporter_id": "00000000-0000-0000-0000-000000000001",
+    "source_system": "stripe",
+    "external_id": "pi_test_1234567890",
+    "event_type": "PaymentEvent",
+    "event_time": "2024-01-15T10:30:00Z",
+    "amount": 1500,
+    "metadata": {
+      "description": "Monthly membership payment",
+      "membership_type": "monthly",
+      "tier": "Standard"
+    }
+  },
+  {
+    "event_id": "10000000-0000-0000-0000-000000000002",
+    "supporter_id": "00000000-0000-0000-0000-000000000001",
+    "source_system": "shopify",
+    "external_id": "1234567890",
+    "event_type": "ShopOrder",
+    "event_time": "2024-01-10T14:00:00Z",
+    "amount": 7500,
+    "metadata": {
+      "order_name": "#1001",
+      "product_title": "Shamrock Rovers Home Jersey 2024",
+      "quantity": 1
+    }
+  },
+  {
+    "event_id": "10000000-0000-0000-0000-000000000003",
+    "supporter_id": "00000000-0000-0000-0000-000000000002",
+    "source_system": "futureticketing",
+    "external_id": "FT_EVENT_001",
+    "event_type": "TicketPurchase",
+    "event_time": "2024-01-05T19:00:00Z",
+    "amount": 2500,
+    "metadata": {
+      "event_name": "vs Shelbourne",
+      "competition": "Premier Division",
+      "quantity": 2,
+      "stand": "Main Stand"
+    }
+  },
+  {
+    "event_id": "10000000-0000-0000-0000-000000000004",
+    "supporter_id": "00000000-0000-0000-0000-000000000002",
+    "source_system": "futureticketing",
+    "external_id": "FT_ENTRY_001",
+    "event_type": "StadiumEntry",
+    "event_time": "2024-01-05T18:45:00Z",
+    "amount": null,
+    "metadata": {
+      "event_name": "vs Shelbourne",
+      "entry_point": "Gate A",
+      "ticket_type": "season_ticket"
+    }
+  },
+  {
+    "event_id": "10000000-0000-0000-0000-000000000005",
+    "supporter_id": "00000000-0000-0000-0000-000000000001",
+    "source_system": "gocardless",
+    "external_id": "PM1234567890",
+    "event_type": "PaymentEvent",
+    "event_time": "2024-01-01T00:00:00Z",
+    "amount": 1500,
+    "metadata": {
+      "payment_scheme": "sepa_core",
+      "membership_type": "monthly"
+    }
+  },
+  {
+    "event_id": "10000000-0000-0000-0000-000000000006",
+    "supporter_id": "00000000-0000-0000-0000-000000000003",
+    "source_system": "shopify",
+    "external_id": "9876543210",
+    "event_type": "ShopOrder",
+    "event_time": "2023-12-20T12:00:00Z",
+    "amount": 4500,
+    "metadata": {
+      "order_name": "#1002",
+      "product_title": "Shamrock Rovers Scarf",
+      "quantity": 3
+    }
+  },
+  {
+    "event_id": "10000000-0000-0000-0000-000000000007",
+    "supporter_id": "00000000-0000-0000-0000-000000000005",
+    "source_system": "futureticketing",
+    "external_id": "FT_AWAY_001",
+    "event_type": "TicketPurchase",
+    "event_time": "2023-10-15T10:00:00Z",
+    "amount": 4500,
+    "metadata": {
+      "event_name": "vs Sligo Rovers (Away)",
+      "competition": "Premier Division",
+      "quantity": 1,
+      "away_match": true
+    }
+  },
+  {
+    "event_id": "10000000-0000-0000-0000-000000000008",
+    "supporter_id": "00000000-0000-0000-0000-000000000005",
+    "source_system": "futureticketing",
+    "external_id": "FT_AWAY_002",
+    "event_type": "TicketPurchase",
+    "event_time": "2023-09-20T10:00:00Z",
+    "amount": 4500,
+    "metadata": {
+      "event_name": "vs Derry City (Away)",
+      "competition": "Premier Division",
+      "quantity": 1,
+      "away_match": true
+    }
+  }
+]

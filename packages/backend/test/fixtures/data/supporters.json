@@ -1,0 +1,107 @@
+[
+  {
+    "supporter_id": "00000000-0000-0000-0000-000000000001",
+    "name": "John Murphy",
+    "primary_email": "john.murphy@example.com",
+    "phone": "+353871234567",
+    "supporter_type": "Member",
+    "supporter_type_source": "auto",
+    "linked_ids": {
+      "shopify": "5555555555",
+      "stripe": "cus_test_001",
+      "gocardless": "CU1234567890",
+      "futureticketing": "FT_CUST_001",
+      "mailchimp": "abc123def456"
+    },
+    "flags": {
+      "shared_email": false,
+      "test_data": true
+    },
+    "created_at": "2023-01-15T10:30:00Z",
+    "updated_at": "2024-01-15T10:30:00Z"
+  },
+  {
+    "supporter_id": "00000000-0000-0000-0000-000000000002",
+    "name": "Sarah O'Brien",
+    "primary_email": "sarah.obrien@example.com",
+    "phone": "+3538698765432",
+    "supporter_type": "Season Ticket Holder",
+    "supporter_type_source": "auto",
+    "linked_ids": {
+      "shopify": null,
+      "stripe": "cus_test_002",
+      "gocardless": null,
+      "futureticketing": "FT_CUST_002",
+      "mailchimp": "def456ghi789"
+    },
+    "flags": {
+      "shared_email": false,
+      "test_data": true
+    },
+    "created_at": "2023-02-01T09:00:00Z",
+    "updated_at": "2024-01-10T14:20:00Z"
+  },
+  {
+    "supporter_id": "00000000-0000-0000-0000-000000000003",
+    "name": "Family Murphy-O'Brien",
+    "primary_email": "family@example.com",
+    "phone": "+3538711122233",
+    "supporter_type": "Unknown",
+    "supporter_type_source": "auto",
+    "linked_ids": {
+      "shopify": "7777777777",
+      "stripe": null,
+      "gocardless": null,
+      "futureticketing": null,
+      "mailchimp": null
+    },
+    "flags": {
+      "shared_email": true,
+      "test_data": true
+    },
+    "created_at": "2023-06-15T16:45:00Z",
+    "updated_at": "2024-01-05T11:15:00Z"
+  },
+  {
+    "supporter_id": "00000000-0000-0000-0000-000000000004",
+    "name": "Patrick Walsh",
+    "primary_email": "patrick.walsh@example.com",
+    "phone": null,
+    "supporter_type": "Ticket Buyer",
+    "supporter_type_source": "auto",
+    "linked_ids": {
+      "shopify": null,
+      "stripe": null,
+      "gocardless": null,
+      "futureticketing": "FT_CUST_003",
+      "mailchimp": null
+    },
+    "flags": {
+      "shared_email": false,
+      "test_data": true
+    },
+    "created_at": "2023-08-20T13:00:00Z",
+    "updated_at": "2024-01-02T10:00:00Z"
+  },
+  {
+    "supporter_id": "00000000-0000-0000-0000-000000000005",
+    "name": "Emma Kelly",
+    "primary_email": "emma.kelly@example.com",
+    "phone": "+3538577788899",
+    "supporter_type": "Away Supporter",
+    "supporter_type_source": "auto",
+    "linked_ids": {
+      "shopify": "8888888888",
+      "stripe": "cus_test_005",
+      "gocardless": null,
+      "futureticketing": "FT_CUST_005",
+      "mailchimp": "ghi789jkl012"
+    },
+    "flags": {
+      "shared_email": false,
+      "test_data": true
+    },
+    "created_at": "2023-09-10T15:30:00Z",
+    "updated_at": "2024-01-08T09:45:00Z"
+  }
+]

@@ -1,0 +1,26 @@
+{
+  "id": "evt_test_1234567890",
+  "object": "event",
+  "api_version": "2020-08-27",
+  "created": 1672531200,
+  "type": "payment_intent.succeeded",
+  "data": {
+    "object": {
+      "id": "pi_test_1234567890",
+      "object": "payment_intent",
+      "amount": 1500,
+      "currency": "eur",
+      "customer": "cus_test_1234567890",
+      "status": "succeeded",
+      "created": 1672531200,
+      "description": "Monthly membership payment",
+      "metadata": {
+        "membership_type": "monthly",
+        "tier": "Standard"
+      },
+      "invoice": "in_test_1234567890"
+    }
+  },
+  "livemode": false,
+  "pending_webhooks": 1
+}

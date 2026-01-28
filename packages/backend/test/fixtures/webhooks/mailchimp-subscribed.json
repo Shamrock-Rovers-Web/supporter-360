@@ -1,0 +1,33 @@
+{
+  "type": "subscribe",
+  "fired_at": "2024-01-15T10:30:00Z",
+  "data": {
+    "id": "abc123def456",
+    "email": "supporter@example.com",
+    "email_type": "html",
+    "ip_opt": "192.168.1.1",
+    "timestamp_signup": "2024-01-15T10:29:00Z",
+    "timestamp_opt": "2024-01-15T10:30:00Z",
+    "member_rating": 2,
+    "info_changed": false,
+    "web_id": 123456789,
+    "lists": [
+      {
+        "id": "abc123xyz",
+        "name": "Members",
+        "status": "subscribed"
+      }
+    ],
+    "merges": {
+      "EMAIL": "supporter@example.com",
+      "FNAME": "John",
+      "LNAME": "Murphy",
+      "MEMBERSHIP": "Standard"
+    },
+    "tags": [
+      "member",
+      "active"
+    ]
+  },
+  "list_id": "abc123xyz"
+}

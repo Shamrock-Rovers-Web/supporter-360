@@ -1,0 +1,19 @@
+{
+  "id": "EV9876543210",
+  "created_at": "2024-01-15T10:30:00Z",
+  "resource_type": "subscriptions",
+  "action": "created",
+  "links": {
+    "subscription": "SB1234567890",
+    "mandate": "MD1234567890",
+    "customer": "CU1234567890"
+  },
+  "details": {
+    "origin": "api",
+    "cause": "subscription_created",
+    "description": "Subscription was created"
+  },
+  "metadata": {
+    "membership_tier": "Standard"
+  }
+}

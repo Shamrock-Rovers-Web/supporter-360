@@ -1,0 +1,49 @@
+{
+  "id": "1a2b3c4d5e6f",
+  "topic": "orders/create",
+  "shop_domain": "shamrock-rovers-test.myshopify.com",
+  "payload": {
+    "id": 1234567890,
+    "email": "supporter@example.com",
+    "phone": "+353871234567",
+    "first_name": "John",
+    "last_name": "Murphy",
+    "created_at": "2024-01-15T10:30:00Z",
+    "updated_at": "2024-01-15T10:30:00Z",
+    "financial_status": "paid",
+    "fulfillment_status": null,
+    "total_price": "75.00",
+    "currency": "EUR",
+    "line_items": [
+      {
+        "id": 9876543210,
+        "product_id": 1111111111,
+        "variant_id": 2222222222,
+        "title": "Shamrock Rovers Home Jersey 2024",
+        "quantity": 1,
+        "price": "75.00",
+        "sku": "SR-JERSEY-HOME-24"
+      }
+    ],
+    "tags": "member, jersey",
+    "customer": {
+      "id": 5555555555,
+      "email": "supporter@example.com",
+      "first_name": "John",
+      "last_name": "Murphy",
+      "phone": "+353871234567",
+      "tags": "member",
+      "verified_email": true
+    },
+    "shipping_address": {
+      "first_name": "John",
+      "last_name": "Murphy",
+      "address1": "123 Tallaght Stadium",
+      "city": "Dublin",
+      "province": "Dublin",
+      "country": "Ireland",
+      "postal_code": "D24 AAA",
+      "country_code": "IE"
+    }
+  }
+}
