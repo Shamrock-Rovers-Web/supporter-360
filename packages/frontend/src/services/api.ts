@@ -39,6 +39,7 @@ export const apiClient = axios.create({
   },
 });
 
+// Unwrap the API response wrapper { success: true, data: ... }
 apiClient.interceptors.response.use(
   (response) => response,
   (error: AxiosError<ApiError>) => {
@@ -56,8 +57,8 @@ export async function searchSupporters(params: SearchParams): Promise<SearchResp
   if (params.limit) searchParams.set('limit', params.limit.toString());
   if (params.offset) searchParams.set('offset', params.offset.toString());
 
-  const response = await apiClient.get(`/search?${searchParams}`);
-  return response.data;
+  const response = await apiClient.get<{ success: boolean; data: SearchResponse }>(`/search?${searchParams}`);
+  return response.data.data;
 }
 
 export async function getSupporterProfile(id: string) {
@@ -73,21 +74,21 @@ export async function getSupporterTimeline(id: string, eventTypes?: string[], li
   if (limit) params.set('limit', limit.toString());
   if (offset) params.set('offset', offset.toString());
 
-  const response = await apiClient.get(`/supporters/${id}/timeline?${params}`);
-  return response.data;
+  const response = await apiClient.get<{ success: boolean; data: any }>(`/supporters/${id}/timeline?${params}`);
+  return response.data.data;
 }
 
 export async function mergeSupporters(sourceId: string, targetId: string, reason?: string) {
-  const response = await apiClient.post('/admin/merge', {
+  const response = await apiClient.post<{ success: boolean; data: any }>('/admin/merge', {
     source_id: sourceId,
     target_id: targetId,
     reason,
   });
-  return response.data;
+  return response.data.data;
 }
 
 export async function searchSupportersForMerge(query: string): Promise<SearchResponse['results']> {
   const params = new URLSearchParams({ q: query, limit: '10' });
-  const response = await apiClient.get(`/search?${params}`);
-  return response.data.results;
+  const response = await apiClient.get<{ success: boolean; data: SearchResponse }>(`/search?${params}`);
+  return response.data.data.results;
 }

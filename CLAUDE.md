@@ -2,6 +2,12 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## IMPORTANT: Always Read Current Status Notes
+
+**Before starting work, read `NOTES.md` for the current status of the project, pending work, and recent changes.**
+
+This file contains session-to-session continuity notes about what's been done, what's broken, and what needs to happen next.
+
 ## Project Overview
 
 Supporter 360 is an internal staff tool for Shamrock Rovers FC that consolidates supporter data from multiple systems (Shopify, Future Ticketing, Stripe, GoCardless, Mailchimp) into a unified PostgreSQL database with a serverless AWS backend.

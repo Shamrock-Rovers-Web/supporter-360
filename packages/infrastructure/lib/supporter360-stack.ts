@@ -32,7 +32,7 @@ export class Supporter360Stack extends cdk.Stack {
       engine: rds.DatabaseInstanceEngine.postgres({
         version: rds.PostgresEngineVersion.VER_15,
       }),
-      instanceType: ec2.InstanceType.of(ec2.InstanceClass.T4G, ec2.InstanceSize.MICRO),
+      instanceType: ec2.InstanceType.of(ec2.InstanceClass.T4G, ec2.InstanceSize.MEDIUM),
       vpc,
       vpcSubnets: {
         subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS,
@@ -175,8 +175,36 @@ export class Supporter360Stack extends cdk.Stack {
       DB_NAME: 'supporter360',
       DB_USER: database.secret?.secretValueFromJson('username').unsafeUnwrap() || 'postgres',
       DB_PASSWORD: database.secret?.secretValueFromJson('password').unsafeUnwrap() || '',
+      DB_SSL: 'true', // Enable SSL for RDS connections
       RAW_PAYLOADS_BUCKET: rawPayloadsBucket.bucketName,
     };
+
+    // ========================================
+    // External API Configuration
+    // ========================================
+    // Future Ticketing
+    const futureTicketingApiUrl = 'https://external.futureticketing.ie';
+    const futureTicketingApiKey = process.env.FUTURE_TICKETING_API_KEY || 'SET_IN_ENV';
+    const futureTicketingPrivateKey = process.env.FUTURE_TICKETING_PRIVATE_KEY || 'SET_IN_ENV';
+
+    // Shopify (2026 Dev Dashboard - OAuth 2.0 + EventBridge)
+    const shopifyShopDomain = 'shamrock-rovers-fc.myshopify.com';
+    const shopifyClientId = 'e5e5abc1adf25556a930aa87dba80d97';
+    const shopifyClientSecret = process.env.SHOPIFY_CLIENT_SECRET || 'SET_IN_ENV_OR_SECRETS_MANAGER';
+    const shopifyEventBusArn = `arn:aws:events:eu-west-1:${this.account}:event-bus/aws.partner/shopify.com/313809895425/supporter360`;
+
+    // GoCardless (placeholder - add keys when available)
+    const gocardlessAccessToken = '';  // TODO: Add actual token
+    const gocardlessApiUrl = 'https://api.gocardless.com';
+    const gocardlessEnvironment = 'sandbox';  // 'sandbox' or 'live'
+
+    // ========================================
+    // Webhook Secrets (update in Lambda console or use Secrets Manager)
+    // ========================================
+    const shopifyWebhookSecret = 'update-in-console-with-shopify-webhook-secret';
+    const stripeWebhookSecret = 'whsec_update-in-console-with-stripe-webhook-secret';
+    const gocardlessWebhookSecret = 'update-in-console-with-gocardless-webhook-secret';
+    const mailchimpWebhookSecret = 'update-in-console-with-mailchimp-webhook-secret';
 
     // ========================================
     // Webhook Handlers
@@ -189,6 +217,7 @@ export class Supporter360Stack extends cdk.Stack {
       environment: {
         ...commonEnvironment,
         SHOPIFY_QUEUE_URL: shopifyQueue.queueUrl,
+        SHOPIFY_WEBHOOK_SECRET: shopifyWebhookSecret,
       },
     });
 
@@ -200,6 +229,7 @@ export class Supporter360Stack extends cdk.Stack {
       environment: {
         ...commonEnvironment,
         STRIPE_QUEUE_URL: stripeQueue.queueUrl,
+        STRIPE_WEBHOOK_SECRET: stripeWebhookSecret,
       },
     });
 
@@ -211,6 +241,7 @@ export class Supporter360Stack extends cdk.Stack {
       environment: {
         ...commonEnvironment,
         GOCARDLESS_QUEUE_URL: gocardlessQueue.queueUrl,
+        GOCARDLESS_WEBHOOK_SECRET: gocardlessWebhookSecret,
       },
     });
 
@@ -222,6 +253,7 @@ export class Supporter360Stack extends cdk.Stack {
       environment: {
         ...commonEnvironment,
         MAILCHIMP_QUEUE_URL: mailchimpQueue.queueUrl,
+        MAILCHIMP_WEBHOOK_SECRET: mailchimpWebhookSecret,
       },
     });
 
@@ -246,7 +278,12 @@ export class Supporter360Stack extends cdk.Stack {
       vpc,
       vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
       securityGroups: [lambdaSecurityGroup],
-      environment: commonEnvironment,
+      environment: {
+        ...commonEnvironment,
+        SHOPIFY_SHOP_DOMAIN: shopifyShopDomain,
+        SHOPIFY_CLIENT_ID: shopifyClientId,
+        SHOPIFY_CLIENT_SECRET: shopifyClientSecret,
+      },
     });
 
     const stripeProcessor = new lambda.Function(this, 'StripeProcessor', {
@@ -279,7 +316,12 @@ export class Supporter360Stack extends cdk.Stack {
       vpc,
       vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
       securityGroups: [lambdaSecurityGroup],
-      environment: commonEnvironment,
+      environment: {
+        ...commonEnvironment,
+        FUTURE_TICKETING_API_URL: futureTicketingApiUrl,
+        FUTURE_TICKETING_API_KEY: futureTicketingApiKey,
+        FUTURE_TICKETING_PRIVATE_KEY: futureTicketingPrivateKey,
+      },
     });
 
     const mailchimpProcessor = new lambda.Function(this, 'MailchimpProcessor', {
@@ -377,6 +419,9 @@ export class Supporter360Stack extends cdk.Stack {
       environment: {
         ...commonEnvironment,
         FUTURE_TICKETING_QUEUE_URL: futureTicketingQueue.queueUrl,
+        FUTURE_TICKETING_API_URL: futureTicketingApiUrl,
+        FUTURE_TICKETING_API_KEY: futureTicketingApiKey,
+        FUTURE_TICKETING_PRIVATE_KEY: futureTicketingPrivateKey,
       },
     });
 
@@ -448,6 +493,28 @@ export class Supporter360Stack extends cdk.Stack {
       targets: [new targets.LambdaFunction(reconciler)],
     });
 
+    // ========================================
+    // EventBridge Rules for Partner Webhooks
+    // ========================================
+
+    // Shopify EventBridge Rule - routes events from Shopify partner event bus to SQS
+    // Event source: aws.partner/shopify.com/313809895425/supporter360
+    const shopifyEventBus = events.EventBus.fromEventBusArn(
+      this,
+      'ShopifyEventBus',
+      shopifyEventBusArn
+    );
+
+    new events.Rule(this, 'ShopifyWebhooksToQueue', {
+      description: 'Route Shopify webhook events from EventBridge to SQS queue',
+      eventBus: shopifyEventBus,
+      eventPattern: {
+        source: ['aws.partner/shopify.com/313809895425'],
+        detailType: ['orders/create', 'orders/updated', 'customers/create', 'customers/update'],
+      },
+      targets: [new targets.SqsQueue(shopifyQueue)],
+    });
+
     // Database Migration Function - one-time use for running schema
     const migrationFunction = new lambda.Function(this, 'DbMigration', {
       runtime: lambda.Runtime.NODEJS_18_X,
@@ -478,7 +545,7 @@ export class Supporter360Stack extends cdk.Stack {
       defaultCorsPreflightOptions: {
         allowOrigins: apigateway.Cors.ALL_ORIGINS,
         allowMethods: apigateway.Cors.ALL_METHODS,
-        allowHeaders: ['Content-Type', 'Authorization'],
+        allowHeaders: ['Content-Type', 'Authorization', 'X-API-Key'],
       },
     });
 

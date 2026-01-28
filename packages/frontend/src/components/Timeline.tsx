@@ -163,11 +163,14 @@ function EventCard({ event }: EventCardProps) {
     }
     if (event.event_type === 'TicketPurchase') {
       if (meta.order_id) items.push({ key: 'Order', value: String(meta.order_id) });
-      if (meta.match_name) items.push({ key: 'Match', value: String(meta.match_name) });
+      if (meta.status) items.push({ key: 'Status', value: String(meta.status) });
+      // FT orders: skip line items here, they're rendered separately below
+      if (meta.match_name && !meta.detail) items.push({ key: 'Match', value: String(meta.match_name) });
     }
     if (event.event_type === 'StadiumEntry') {
       if (meta.match_name) items.push({ key: 'Match', value: String(meta.match_name) });
       if (meta.gate) items.push({ key: 'Gate', value: String(meta.gate) });
+      if (meta.barcode) items.push({ key: 'Barcode', value: String(meta.barcode).slice(-8) });
     }
     if (event.event_type === 'PaymentEvent') {
       if (meta.payment_id) items.push({ key: 'Payment', value: String(meta.payment_id) });
@@ -190,6 +193,59 @@ function EventCard({ event }: EventCardProps) {
 
     return items;
   };
+
+  // Check if this is a Future Ticketing order with detail array
+  const isFTOrder = event.source_system === 'futureticketing' && event.event_type === 'TicketPurchase' && Array.isArray(event.metadata?.detail);
+
+  // Get FT line items
+  const getFTLineItems = () => {
+    if (!isFTOrder) return null;
+    const detail = event.metadata?.detail || [];
+    return detail.filter((d: { product?: string }) => d.product).slice(0, 5); // Max 5 items to avoid clutter
+  };
+
+  // Get FT scan info from barcodes
+  const getFTScans = () => {
+    if (!isFTOrder) return null;
+    const detail = event.metadata?.detail || [];
+    const scans: { barcode: string; scanTime: string; scanner: string }[] = [];
+    for (const d of detail) {
+      const barcodes = d.barcode || [];
+      for (const b of barcodes) {
+        if (b.scan_datetime) {
+          scans.push({
+            barcode: b.barcode_ean13?.slice(-8) || b.barcode?.slice(-8) || 'Unknown',
+            scanTime: b.scan_datetime,
+            scanner: b.scanner_no || b.scan_detail || 'Gate',
+          });
+        }
+      }
+    }
+    return scans.length > 0 ? scans : null;
+  };
+
+  // Get FT extra fields (DOB, etc.)
+  const getFTExtraFields = () => {
+    if (!isFTOrder) return null;
+    const extraFields = event.metadata?.extra_field || [];
+    if (!Array.isArray(extraFields) || extraFields.length === 0) return null;
+    const fields: { key: string; value: string }[] = [];
+    for (const ef of extraFields) {
+      if (ef.extra_field_name && ef.value) {
+        let label = ef.extra_field_name
+          .replace(/([A-Z])/g, ' $1')
+          .replace(/^MembershipName/, '')
+          .replace(/SeasonTicketDateofBirth/i, 'Date of Birth')
+          .trim();
+        fields.push({ key: label, value: ef.value });
+      }
+    }
+    return fields.length > 0 ? fields : null;
+  };
+
+  const ftLineItems = getFTLineItems();
+  const ftScans = getFTScans();
+  const ftExtraFields = getFTExtraFields();
 
   const metadataItems = getMetadataDisplay();
 
@@ -264,8 +320,72 @@ function EventCard({ event }: EventCardProps) {
           </div>
         )}
 
+        {/* FT Line Items */}
+        {ftLineItems && ftLineItems.length > 0 && (
+          <div className="mt-3 pt-3 border-t border-gray-100">
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Items</p>
+            <div className="space-y-1">
+              {ftLineItems.map((item: { product?: string; event?: string; quantity?: string; event_date?: string }, idx: number) => (
+                <div key={idx} className="text-sm flex items-start gap-2">
+                  <span className="text-gray-400">•</span>
+                  <div>
+                    <span className="font-medium text-gray-800">{item.product || 'Item'}</span>
+                    {item.event && (
+                      <span className="text-gray-500 ml-1">({item.event})</span>
+                    )}
+                    {item.quantity && item.quantity !== '1' && (
+                      <span className="text-gray-500 ml-1">×{item.quantity}</span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* FT Scan History */}
+        {ftScans && ftScans.length > 0 && (
+          <div className="mt-3 pt-3 border-t border-gray-100">
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
+              Scanned In
+            </p>
+            <div className="space-y-1">
+              {ftScans.map((scan, idx) => (
+                <div key={idx} className="text-sm flex items-center gap-2">
+                  <span className="text-green-500">✓</span>
+                  <span className="text-gray-600">
+                    {new Date(scan.scanTime).toLocaleString('en-GB', {
+                      day: 'numeric',
+                      month: 'short',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </span>
+                  <span className="text-gray-400">•</span>
+                  <span className="text-gray-500">{scan.scanner}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* FT Extra Fields (DOB, etc) */}
+        {ftExtraFields && (
+          <div className="mt-3 pt-3 border-t border-gray-100">
+            <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Details</p>
+            <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+              {ftExtraFields.map((field, idx) => (
+                <span key={idx} className="text-gray-600">
+                  <span className="font-medium">{field.key}:</span>{' '}
+                  <span className="text-gray-800">{field.value}</span>
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Expandable raw metadata */}
-        {Object.keys(event.metadata || {}).length > 0 && (
+        {Object.keys(event.metadata || {}).length > 0 && !isFTOrder && (
           <details className="mt-3">
             <summary className="text-xs text-gray-500 cursor-pointer hover:text-gray-700 select-none">
               View all details
@@ -335,7 +455,7 @@ export function Timeline({ supporterId }: TimelineProps) {
   const total = timelineData?.total ?? 0;
   const hasMore = timelineData?.has_more ?? false;
 
-  // Group events by date
+  // Group events by date, sorted newest first
   const groupedEvents = events.reduce((acc, event) => {
     const dateKey = new Date(event.event_time).toDateString();
     if (!acc[dateKey]) {
@@ -344,6 +464,11 @@ export function Timeline({ supporterId }: TimelineProps) {
     acc[dateKey].push(event);
     return acc;
   }, {} as Record<string, typeof events>);
+
+  // Sort date groups by date descending (newest first)
+  const sortedDateGroups = Object.entries(groupedEvents).sort((a, b) => {
+    return new Date(b[0]).getTime() - new Date(a[0]).getTime();
+  });
 
   const toggleType = useCallback((type: EventType) => {
     setSelectedTypes(prev =>
@@ -438,7 +563,7 @@ export function Timeline({ supporterId }: TimelineProps) {
       {/* Events Grouped by Date */}
       {!isLoading && events.length > 0 && (
         <div className="space-y-2" role="feed" aria-label="Supporter timeline events">
-          {Object.entries(groupedEvents).map(([dateKey, dateEvents]) => (
+          {sortedDateGroups.map(([dateKey, dateEvents]) => (
             <div key={dateKey}>
               <DateGroupHeader date={dateKey} count={dateEvents.length} />
               <div className="space-y-3">

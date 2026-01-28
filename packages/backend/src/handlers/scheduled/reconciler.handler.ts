@@ -334,31 +334,57 @@ async function reconcileFutureTicketing(since: Date): Promise<SourceReconciliati
     errors: [],
   };
 
+  // Convert dates to YYYY-MM-DD format for FT API
+  const formatDate = (date: Date): string => date.toISOString().split('T')[0];
+  const startDate = formatDate(since);
+  const endDate = formatDate(new Date());
+
   try {
     const ftClient = createFutureTicketingClient();
 
-    // Get orders since the lookback date
-    const orders = await ftClient.getOrders(since.toISOString());
+    // Get orders using date range search
+    let page = 1;
+    let hasMore = true;
+    const allOrders: unknown[] = [];
 
-    result.events_found = orders.length;
+    while (hasMore && page <= 50) {
+      const response = await ftClient.getOrdersByDate(startDate, endDate, { page, validOrder: true });
+      if (response.data?.length) {
+        allOrders.push(...response.data);
+        result.events_found += response.data.length;
+      }
 
-    for (const order of orders) {
+      const currentPage = response.currentpage || page;
+      const limit = parseInt(response.limit || '20', 10);
+      const total = parseInt(response.total || '0', 10);
+      hasMore = currentPage * limit < total;
+      page++;
+    }
+
+    for (const order of allOrders as Array<{
+      id: string;
+      account_id: string;
+      order_date: string;
+      order_amount: string;
+      status: string;
+      detail: unknown[];
+    }>) {
       try {
-        const exists = await eventExists('futureticketing', order.OrderID);
+        const exists = await eventExists('futureticketing', order.id);
 
         if (exists) {
           result.events_already_exists++;
           continue;
         }
 
-        // Find supporter by FT customer ID
+        // Find supporter by FT account ID
         const supporterResult = await query<{ supporter_id: string }>(
           `SELECT supporter_id FROM supporter WHERE linked_ids->>'futureticketing' = $1 LIMIT 1`,
-          [order.CustomerID]
+          [order.account_id]
         );
 
         if (supporterResult.rows.length === 0) {
-          result.errors.push(`No supporter found for FT order ${order.OrderID}`);
+          result.errors.push(`No supporter found for FT order ${order.id}`);
           continue;
         }
 
@@ -373,48 +399,51 @@ async function reconcileFutureTicketing(since: Date): Promise<SourceReconciliati
             supporterId,
             'futureticketing',
             'TicketPurchase',
-            new Date(order.OrderDate),
-            order.OrderID,
-            order.TotalAmount || 0,
+            new Date(order.order_date),
+            order.id,
+            parseFloat(order.order_amount) || 0,
             'EUR',
             JSON.stringify({
-              order_id: order.OrderID,
-              customer_id: order.CustomerID,
-              items: order.Items,
-              total_amount: order.TotalAmount,
-              status: order.Status,
+              order_id: order.id,
+              account_id: order.account_id,
+              detail: order.detail,
+              total_amount: order.order_amount,
+              status: order.status,
             }),
             new Date(),
           ]
         );
 
         result.events_recovered++;
-        console.log(`[Reconciler] Recovered FT order ${order.OrderID}`);
+        console.log(`[Reconciler] Recovered FT order ${order.id}`);
       } catch (error) {
-        result.errors.push(`Error processing FT order ${order.OrderID}: ${error instanceof Error ? error.message : 'Unknown'}`);
+        result.errors.push(`Error processing FT order: ${error instanceof Error ? error.message : 'Unknown'}`);
       }
     }
 
-    // Also reconcile stadium entries
-    const entries = await ftClient.getStadiumEntries(since.toISOString());
+    // Also reconcile stadium entries (extracted from order barcodes)
+    const entries = await ftClient.getStadiumEntries(startDate, endDate);
 
     for (const entry of entries) {
       try {
-        const exists = await eventExists('futureticketing', entry.EntryID);
+        // Use barcode + scan_datetime as the unique ID for entries
+        const entryId = `${entry.barcode_ean13}-${entry.scan_datetime}`;
+
+        const exists = await eventExists('futureticketing', entryId);
 
         if (exists) {
           result.events_already_exists++;
           continue;
         }
 
-        // Find supporter by FT customer ID
+        // Find supporter by FT account ID
         const supporterResult = await query<{ supporter_id: string }>(
           `SELECT supporter_id FROM supporter WHERE linked_ids->>'futureticketing' = $1 LIMIT 1`,
-          [entry.CustomerID]
+          [entry.account_id]
         );
 
         if (supporterResult.rows.length === 0) {
-          result.errors.push(`No supporter found for FT entry ${entry.EntryID}`);
+          result.errors.push(`No supporter found for FT entry ${entryId}`);
           continue;
         }
 
@@ -429,16 +458,16 @@ async function reconcileFutureTicketing(since: Date): Promise<SourceReconciliati
             supporterId,
             'futureticketing',
             'StadiumEntry',
-            new Date(entry.EntryTime),
-            entry.EntryID,
+            entry.scan_datetime ? new Date(entry.scan_datetime) : new Date(entry.event_date),
+            entryId,
             null,
             null,
             JSON.stringify({
-              entry_id: entry.EntryID,
-              customer_id: entry.CustomerID,
-              event_id: entry.EventID,
-              event_name: entry.EventName,
-              gate: entry.Gate,
+              barcode: entry.barcode_ean13,
+              account_id: entry.account_id,
+              event_id: entry.event_id,
+              event_name: entry.event,
+              scanner_no: entry.scanner_no,
             }),
             new Date(),
           ]
@@ -446,9 +475,9 @@ async function reconcileFutureTicketing(since: Date): Promise<SourceReconciliati
 
         result.events_recovered++;
         result.events_found++;
-        console.log(`[Reconciler] Recovered FT entry ${entry.EntryID}`);
+        console.log(`[Reconciler] Recovered FT entry ${entryId}`);
       } catch (error) {
-        result.errors.push(`Error processing FT entry ${entry.EntryID}: ${error instanceof Error ? error.message : 'Unknown'}`);
+        result.errors.push(`Error processing FT entry: ${error instanceof Error ? error.message : 'Unknown'}`);
       }
     }
   } catch (error) {

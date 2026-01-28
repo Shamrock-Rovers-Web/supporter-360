@@ -521,10 +521,19 @@ export class SupporterRepository {
     const sql = `
       INSERT INTO email_alias (supporter_id, email, is_shared)
       VALUES ($1, $2, $3)
-      ON CONFLICT (email) DO UPDATE SET supporter_id = $1, is_shared = $3
+      ON CONFLICT (email, supporter_id) DO NOTHING
       RETURNING *
     `;
-    const result = await query<EmailAlias>(sql, [supporterId, email, isShared]);
+    let result = await query<EmailAlias>(sql, [supporterId, email, isShared]);
+
+    // If conflict occurred, fetch the existing row
+    if (result.rows.length === 0) {
+      result = await query<EmailAlias>(
+        'SELECT * FROM email_alias WHERE email = $1 AND supporter_id = $2',
+        [email, supporterId]
+      );
+    }
+
     return result.rows[0];
   }
 

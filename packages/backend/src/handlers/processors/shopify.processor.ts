@@ -2,12 +2,17 @@
  * Shopify Event Processor
  *
  * SQS Lambda handler that processes Shopify webhook events.
- * Fetches payloads from S3, creates/updates supporters, stores events.
+ * Supports both HTTP webhooks (via API Gateway) and EventBridge delivery.
  *
- * Processes:
- * - orders/create: Creates ShopOrder event, updates supporter
- * - customers/create: Creates supporter with Shopify customer ID
- * - customers/update: Updates supporter contact info
+ * EventBridge Format:
+ * - detail-type: Shopify topic (e.g., "orders/create")
+ * - source: "aws.partner/shopify.com/313809895425"
+ * - detail: Shopify payload
+ *
+ * HTTP Webhook Format:
+ * - topic: Shopify topic
+ * - payload: Shopify data
+ * - s3Key: S3 reference for raw payload
  *
  * @packageDocumentation
  */
@@ -32,12 +37,26 @@ const eventRepo = new EventRepository();
 // Types
 // ============================================================================
 
+// EventBridge event format
+interface EventBridgeMessage {
+  version: string;
+  id: string;
+  'detail-type': string;
+  source: string;
+  account: string;
+  time: string;
+  region: string;
+  resources: string[];
+  detail: ShopifyPayload;
+}
+
+// Legacy HTTP webhook format
 interface ShopifySqsMessage {
   topic: string;
   domain?: string;
   payload: ShopifyPayload;
-  s3Key: string;
-  payloadId: string;
+  s3Key?: string;
+  payloadId?: string;
 }
 
 interface ShopifyPayload {
@@ -80,7 +99,7 @@ interface ShopifyLineItem {
 // ============================================================================
 
 export const handler: SQSHandler = async (event: SQSEvent): Promise<void> => {
-  console.log(`Processing ${event.Records.length} Shopify webhook messages`);
+  console.log(`Processing ${event.Records.length} Shopify messages`);
 
   for (const record of event.Records) {
     try {
@@ -92,7 +111,7 @@ export const handler: SQSHandler = async (event: SQSEvent): Promise<void> => {
     }
   }
 
-  console.log('Successfully processed all Shopify webhook messages');
+  console.log('Successfully processed all Shopify messages');
 };
 
 // ============================================================================
@@ -100,16 +119,38 @@ export const handler: SQSHandler = async (event: SQSEvent): Promise<void> => {
 // ============================================================================
 
 async function processShopifyMessage(record: SQSRecord): Promise<void> {
-  const message: ShopifySqsMessage = JSON.parse(record.body);
-  const { topic, payload, s3Key, payloadId } = message;
+  const body = JSON.parse(record.body);
 
-  console.log(`Processing Shopify webhook: ${topic} - ${payloadId}`);
+  // Detect format: EventBridge or legacy HTTP webhook
+  const isEventBridge = body.version && body['detail-type'] && body.detail;
+
+  let topic: string;
+  let payload: ShopifyPayload;
+  let s3Key: string | undefined;
+
+  if (isEventBridge) {
+    // EventBridge format
+    const event = body as EventBridgeMessage;
+    topic = event['detail-type'];
+    payload = event.detail;
+    s3Key = undefined; // EventBridge doesn't use S3
+    console.log(`Processing Shopify EventBridge: ${topic} - ${event.id}`);
+  } else {
+    // Legacy HTTP webhook format
+    const message = body as ShopifySqsMessage;
+    topic = message.topic;
+    payload = message.payload;
+    s3Key = message.s3Key;
+    console.log(`Processing Shopify webhook: ${topic} - ${message.payloadId}`);
+  }
 
   // Route to appropriate handler based on topic
   switch (topic) {
     case 'orders/create':
+    case 'orders/updated':
     case 'orders/paid':
     case 'orders/fulfilled':
+    case 'orders/cancelled':
       await handleOrderEvent(payload, topic, s3Key);
       break;
 
@@ -133,7 +174,7 @@ async function processShopifyMessage(record: SQSRecord): Promise<void> {
 async function handleOrderEvent(
   order: ShopifyPayload,
   topic: string,
-  s3Key: string
+  s3Key?: string
 ): Promise<void> {
   const email = order.email?.toLowerCase();
   if (!email) {
@@ -187,7 +228,7 @@ async function handleOrderEvent(
 // Customer Create Handler
 // ============================================================================
 
-async function handleCustomerCreate(customer: ShopifyPayload, s3Key: string): Promise<void> {
+async function handleCustomerCreate(customer: ShopifyPayload, s3Key?: string): Promise<void> {
   const email = customer.email?.toLowerCase();
   if (!email) {
     console.warn('Customer without email, skipping:', customer.id);
@@ -239,7 +280,7 @@ async function handleCustomerCreate(customer: ShopifyPayload, s3Key: string): Pr
 // Customer Update Handler
 // ============================================================================
 
-async function handleCustomerUpdate(customer: ShopifyPayload, s3Key: string): Promise<void> {
+async function handleCustomerUpdate(customer: ShopifyPayload, s3Key?: string): Promise<void> {
   const email = customer.email?.toLowerCase();
   if (!email) {
     console.warn('Customer update without email, skipping:', customer.id);

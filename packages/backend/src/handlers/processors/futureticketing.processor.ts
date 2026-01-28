@@ -2,12 +2,10 @@
  * Future Ticketing Event Processor
  *
  * SQS Lambda handler that processes Future Ticketing data.
- * Fetches payloads from S3, looks up product mappings, tags supporters.
  *
  * Processes:
- * - orders: Creates TicketPurchase event, looks up product mapping
- * - customers: Creates/updates supporter with FT customer ID
- * - entries: Creates StadiumEntry event
+ * - accounts: Creates/updates supporter with FT account ID
+ * - orders: Creates TicketPurchase event with full detail, scan history
  *
  * Product Mapping:
  * - Looks up product in future_ticketing_product_mapping table
@@ -30,52 +28,131 @@ const supporterRepo = new SupporterRepository();
 const eventRepo = new EventRepository();
 
 // ============================================================================
-// Types
+// Types (matching new FT API response structure)
 // ============================================================================
 
 interface FutureTicketingSqsMessage {
-  type: 'customer' | 'order' | 'entry';
-  data: FTCustomer | FTOrder | FTEntry;
+  type: 'account' | 'order' | 'entry';
+  data: FTAccount | FTOrder | FTStadiumEntry;
   s3Key?: string;
   payloadId?: string;
 }
 
-interface FTCustomer {
-  CustomerID: string;
-  Email?: string;
-  FirstName?: string;
-  LastName?: string;
-  Phone?: string;
-  [key: string]: unknown;
+// FT Account (was Customer)
+interface FTAccount {
+  id: string;
+  uuid: string;
+  email: string;
+  title?: string | null;
+  first_name?: string | null;
+  second_name?: string | null;
+  more_info?: string;
+  more_info2?: string;
+  added?: string;
+  archived?: number;
+  // Expanded fields
+  address?: FTAccountAddress[];
+  account_category?: FTAccountCategory[];
+  extra_field?: FTAccountExtraField[];
+  age?: number;
 }
 
+interface FTAccountAddress {
+  id: string;
+  address1: string;
+  address2: string;
+  address3: string;
+  city: string;
+  county: string;
+  postcode: string;
+  country: string;
+}
+
+interface FTAccountCategory {
+  id: string;
+  category_name: string;
+}
+
+interface FTAccountExtraField {
+  id: string;
+  extra_field_name: string;
+  value: string;
+}
+
+// FT Order
 interface FTOrder {
-  OrderID: string;
-  CustomerID: string;
-  OrderDate: Date | string;
-  TotalAmount?: number;
-  Status?: string;
-  Items?: FTOrderItem[];
-  [key: string]: unknown;
+  id: string;
+  account_uuid: string;
+  account_id: string;
+  status: string;
+  order_date: string;
+  order_email: string;
+  email: string;
+  order_amount: string;
+  title?: string | null;
+  first_name: string;
+  second_name: string;
+  address1: string;
+  address2: string;
+  address3: string;
+  county: string;
+  postcode: string;
+  country: string;
+  phone: string;
+  payment_type: string;
+  comment?: string | null;
+  detail: FTOrderDetail[];
+  extra_field?: FTOrderExtraField[];
 }
 
-interface FTOrderItem {
-  ProductID?: string;
-  CategoryID?: string;
-  ProductName?: string;
-  Quantity?: number;
-  Price?: number;
-  [key: string]: unknown;
+interface FTOrderDetail {
+  id: string;
+  product_id: string;
+  product: string;
+  product_area_id: string;
+  product_area_name: string;
+  product_category_id: string;
+  quantity: string;
+  product_price: string;
+  event_id: string;
+  event: string;
+  event_date: string;
+  barcode?: FTBarcode[];
 }
 
-interface FTEntry {
-  EntryID: string;
-  CustomerID: string;
-  EntryTime: Date | string;
-  EventID?: string;
-  EventName?: string;
-  Gate?: string;
-  [key: string]: unknown;
+interface FTBarcode {
+  id: string;
+  uuid: string;
+  barcode_ean13: string;
+  barcode_external: string | null;
+  scan_datetime: string | null;
+  scan_detail: string | null;
+  scanner_no: string | null;
+  seat: string | null;
+}
+
+interface FTOrderExtraField {
+  order_detail_id: string;
+  barcode: string;
+  barcode_external: string;
+  extra_field_id: string;
+  extra_field_name: string;
+  value: string;
+}
+
+// FT Stadium Entry (extracted from order barcodes)
+interface FTStadiumEntry {
+  barcode_ean13: string;
+  scan_datetime: string | null;
+  scan_detail: string | null;
+  scanner_no: string | null;
+  order_id: string;
+  account_id: string;
+  event_id: string;
+  event: string;
+  event_date: string;
+  product_id: string;
+  product: string;
 }
 
 interface FTProductMapping {
@@ -115,15 +192,21 @@ export const handler: SQSHandler = async (event: SQSEvent): Promise<void> => {
 // ============================================================================
 
 async function processFTMessage(record: SQSRecord): Promise<void> {
-  const message: FutureTicketingSqsMessage = JSON.parse(record.body);
-  const { type, data } = message;
+  // Poller sends type in MessageAttributes, data in MessageBody
+  const type = record.messageAttributes?.type?.stringValue;
+  const data = JSON.parse(record.body);
+
+  if (!type) {
+    console.error('Missing type attribute in SQS message');
+    return;
+  }
 
   console.log(`Processing Future Ticketing ${type}: ${JSON.stringify(data).slice(0, 100)}`);
 
   // Route to appropriate handler based on type
   switch (type) {
-    case 'customer':
-      await processCustomer(data as FTCustomer);
+    case 'account':
+      await processAccount(data as FTAccount);
       break;
 
     case 'order':
@@ -131,7 +214,7 @@ async function processFTMessage(record: SQSRecord): Promise<void> {
       break;
 
     case 'entry':
-      await processEntry(data as FTEntry);
+      await processEntry(data as FTStadiumEntry);
       break;
 
     default:
@@ -140,59 +223,59 @@ async function processFTMessage(record: SQSRecord): Promise<void> {
 }
 
 // ============================================================================
-// Customer Handler
+// Account Handler
 // ============================================================================
 
-async function processCustomer(customer: FTCustomer): Promise<void> {
-  const customerId = customer.CustomerID;
+async function processAccount(account: FTAccount): Promise<void> {
+  const accountId = account.id;
 
-  // Check if supporter already exists with this FT customer ID
-  const existingSupporter = await findSupporterByFTCustomerId(customerId);
+  // Check if supporter already exists with this FT account ID
+  const existingSupporter = await findSupporterByFTAccountId(accountId);
 
   if (existingSupporter) {
-    console.log(`Supporter already exists for FT customer ${customerId}, skipping`);
+    console.log(`Supporter already exists for FT account ${accountId}, skipping`);
     return;
   }
 
   // Check if supporter exists with matching email
-  if (customer.Email) {
-    const supporters = await supporterRepo.findByEmail(customer.Email);
+  if (account.email) {
+    const supporters = await supporterRepo.findByEmail(account.email);
 
     if (supporters.length === 1) {
-      // Update existing supporter with FT customer ID
+      // Update existing supporter with FT account ID
       const supporter = supporters[0];
       await supporterRepo.updateLinkedIds(supporter.supporter_id, {
-        futureticketing: customerId,
+        futureticketing: accountId,
       });
-      console.log(`Updated supporter ${supporter.supporter_id} with FT customer ID ${customerId}`);
+      console.log(`Updated supporter ${supporter.supporter_id} with FT account ID ${accountId}`);
       return;
     }
 
     if (supporters.length > 1) {
-      console.warn(`Multiple supporters for email ${customer.Email}, cannot link FT customer ${customerId}`);
+      console.warn(`Multiple supporters for email ${account.email}, cannot link FT account ${accountId}`);
       return;
     }
   }
 
   // Create new supporter
-  const name = `${customer.FirstName || ''} ${customer.LastName || ''}`.trim() || null;
+  const name = `${account.first_name || ''} ${account.second_name || ''}`.trim() || null;
 
   const newSupporter = await supporterRepo.create({
     name,
-    primary_email: customer.Email || null,
-    phone: customer.Phone || null,
+    primary_email: account.email || null,
+    phone: null, // FT doesn't provide phone at account level
     supporter_type: 'Unknown',
     supporter_type_source: 'auto',
     linked_ids: {
-      futureticketing: customerId,
+      futureticketing: accountId,
     },
   });
 
-  if (customer.Email) {
-    await supporterRepo.addEmailAlias(newSupporter.supporter_id, customer.Email, false);
+  if (account.email) {
+    await supporterRepo.addEmailAlias(newSupporter.supporter_id, account.email, false);
   }
 
-  console.log(`Created new supporter from FT customer: ${newSupporter.supporter_id}`);
+  console.log(`Created new supporter from FT account: ${newSupporter.supporter_id}`);
 }
 
 // ============================================================================
@@ -200,61 +283,82 @@ async function processCustomer(customer: FTCustomer): Promise<void> {
 // ============================================================================
 
 async function processOrder(order: FTOrder): Promise<void> {
-  const customerId = order.CustomerID;
+  const accountId = order.account_id;
 
-  // Find supporter by FT customer ID
-  let supporter = await findSupporterByFTCustomerId(customerId);
+  // Find supporter by FT account ID
+  let supporter = await findSupporterByFTAccountId(accountId);
 
   if (!supporter) {
-    // Try to create supporter from minimal customer data
-    console.log(`Supporter not found for FT customer ${customerId}, attempting to create`);
-    await processCustomer({ CustomerID: customerId });
-    supporter = await findSupporterByFTCustomerId(customerId);
+    // Try to create supporter from order data
+    console.log(`Supporter not found for FT account ${accountId}, attempting to create`);
+    await processAccount({
+      id: accountId,
+      uuid: order.account_uuid,
+      email: order.email,
+      first_name: order.first_name,
+      second_name: order.second_name,
+    });
+    supporter = await findSupporterByFTAccountId(accountId);
   }
 
   if (!supporter) {
-    console.warn(`Could not find or create supporter for FT customer ${customerId}, skipping order`);
+    console.warn(`Could not find or create supporter for FT account ${accountId}, skipping order`);
     return;
   }
 
   // Check for idempotency
-  const externalId = `ft-order-${order.OrderID}`;
+  const externalId = `ft-order-${order.id}`;
   const existingEvent = await eventRepo.findByExternalId('futureticketing', externalId);
 
   if (existingEvent) {
-    console.log(`Order ${order.OrderID} already processed, skipping`);
+    console.log(`Order ${order.id} already processed, skipping`);
     return;
   }
 
   // Check product mappings for all items
   const productMeanings = new Set<ProductMeaning>();
 
-  if (order.Items && order.Items.length > 0) {
-    for (const item of order.Items) {
-      const meaning = await getProductMeaning(item.ProductID, item.CategoryID);
+  if (order.detail && order.detail.length > 0) {
+    for (const item of order.detail) {
+      const meaning = await getProductMeaning(item.product_id, item.product_category_id);
       if (meaning) {
         productMeanings.add(meaning);
       }
     }
   }
 
-  // Create TicketPurchase event
+  // Parse amount - FT returns it as a string
+  const amount = order.order_amount ? parseFloat(order.order_amount) : null;
+
+  // Create TicketPurchase event with rich FT detail
   await eventRepo.create({
     supporter_id: supporter.supporter_id,
     source_system: 'futureticketing',
     event_type: 'TicketPurchase',
-    event_time: new Date(order.OrderDate),
+    event_time: new Date(order.order_date),
     external_id: externalId,
-    amount: order.TotalAmount || null,
+    amount: amount,
     currency: 'EUR',
     metadata: {
-      order_id: order.OrderID,
-      customer_id: order.CustomerID,
-      status: order.Status,
-      items: order.Items,
+      order_id: order.id,
+      account_id: order.account_id,
+      status: order.status,
+      detail: order.detail,
+      extra_field: order.extra_field,
       product_meanings: Array.from(productMeanings),
+      // Legacy fields for compatibility
+      items: order.detail.map(d => ({
+        product_id: d.product_id,
+        product_name: d.product,
+        category_id: d.product_category_id,
+        quantity: parseInt(d.quantity, 10),
+        price: parseFloat(d.product_price),
+        event_id: d.event_id,
+        event_name: d.event,
+        event_date: d.event_date,
+      })),
     },
-    raw_payload_ref: null, // FT poller doesn't use S3
+    raw_payload_ref: null,
   });
 
   // Update supporter type based on product meanings
@@ -267,23 +371,26 @@ async function processOrder(order: FTOrder): Promise<void> {
 // Entry Handler
 // ============================================================================
 
-async function processEntry(entry: FTEntry): Promise<void> {
-  const customerId = entry.CustomerID;
+async function processEntry(entry: FTStadiumEntry): Promise<void> {
+  const accountId = entry.account_id;
 
-  // Find supporter by FT customer ID
-  const supporter = await findSupporterByFTCustomerId(customerId);
+  // Find supporter by FT account ID
+  const supporter = await findSupporterByFTAccountId(accountId);
 
   if (!supporter) {
-    console.log(`Supporter not found for FT customer ${customerId}, skipping entry`);
+    console.log(`Supporter not found for FT account ${accountId}, skipping entry`);
     return;
   }
 
-  // Check for idempotency
-  const externalId = `ft-entry-${entry.EntryID}`;
-  const existingEvent = await eventRepo.findByExternalId('futureticketing', externalId);
+  // Create unique external ID from barcode + scan time
+  const uniqueId = entry.scan_datetime
+    ? `ft-entry-${entry.barcode_ean13}-${entry.scan_datetime}`
+    : `ft-entry-${entry.barcode_ean13}`;
+
+  const existingEvent = await eventRepo.findByExternalId('futureticketing', uniqueId);
 
   if (existingEvent) {
-    console.log(`Entry ${entry.EntryID} already processed, skipping`);
+    console.log(`Entry ${uniqueId} already processed, skipping`);
     return;
   }
 
@@ -292,16 +399,19 @@ async function processEntry(entry: FTEntry): Promise<void> {
     supporter_id: supporter.supporter_id,
     source_system: 'futureticketing',
     event_type: 'StadiumEntry',
-    event_time: new Date(entry.EntryTime),
-    external_id: externalId,
+    event_time: entry.scan_datetime ? new Date(entry.scan_datetime) : new Date(entry.event_date),
+    external_id: uniqueId,
     amount: null,
     currency: null,
     metadata: {
-      entry_id: entry.EntryID,
-      customer_id: entry.CustomerID,
-      event_id: entry.EventID,
-      event_name: entry.EventName,
-      gate: entry.Gate,
+      barcode: entry.barcode_ean13,
+      account_id: entry.account_id,
+      event_id: entry.event_id,
+      event_name: entry.event,
+      scanner_no: entry.scanner_no,
+      scan_detail: entry.scan_detail,
+      product_id: entry.product_id,
+      product: entry.product,
     },
     raw_payload_ref: null,
   });
@@ -313,20 +423,24 @@ async function processEntry(entry: FTEntry): Promise<void> {
 // Supporter Lookup
 // ============================================================================
 
-async function findSupporterByFTCustomerId(customerId: string): Promise<Supporter | null> {
-  // Search for supporter with this FT customer ID in linked_ids
-  const result = await supporterRepo.search({
-    query: customerId,
-    field: 'all',
-    limit: 100,
-  });
+async function findSupporterByFTAccountId(accountId: string): Promise<Supporter | null> {
+  // Query directly by linked_ids JSONB field
+  const result = await query<{ supporter_id: string }>(
+    `SELECT supporter_id FROM supporter WHERE linked_ids->>'futureticketing' = $1`,
+    [accountId]
+  );
 
-  // Find supporter with matching FT customer ID
-  const found = result.results.find((s: any) => s.linked_ids?.futureticketing === customerId);
-  if (!found) return null;
+  if (result.rows.length === 0) {
+    return null;
+  }
 
   // Get full supporter profile
-  return await supporterRepo.findById(found.supporter_id);
+  return await supporterRepo.findById(result.rows[0].supporter_id);
+}
+
+// Legacy alias for old CustomerID-based lookups
+async function findSupporterByFTCustomerId(customerId: string): Promise<Supporter | null> {
+  return findSupporterByFTAccountId(customerId);
 }
 
 // ============================================================================

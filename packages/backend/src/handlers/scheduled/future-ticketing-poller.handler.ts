@@ -16,13 +16,23 @@ import { ScheduledEvent } from 'aws-lambda';
 import { SQSClient, SendMessageBatchCommand } from '@aws-sdk/client-sqs';
 import { query } from '../../db/connection';
 import { createFutureTicketingClient } from '../../integrations/future-ticketing';
-import type { FTCustomer, FTOrder, FTStadiumEntry } from '../../integrations/future-ticketing/types';
+import type { FTAccount, FTOrder, FTStadiumEntry } from '../../integrations/future-ticketing/types';
+
+// FTCustomer is an alias for FTAccount for backwards compatibility
+type FTCustomer = FTAccount;
+
+/**
+ * Convert ISO date string to YYYY-MM-DD format for FT API
+ */
+function toApiDate(isoString: string): string {
+  return isoString.split('T')[0];
+}
 
 /**
  * Checkpoint tracking last poll timestamps for each FT entity type
  */
 interface FTPollCheckpoint {
-  last_customer_poll: string | null;
+  last_account_poll: string | null;
   last_order_poll: string | null;
   last_entry_poll: string | null;
 }
@@ -59,7 +69,7 @@ async function loadCheckpoint(): Promise<FTPollCheckpoint> {
 
   if (result.rows.length === 0) {
     return {
-      last_customer_poll: null,
+      last_account_poll: null,
       last_order_poll: null,
       last_entry_poll: null,
     };
@@ -69,7 +79,7 @@ async function loadCheckpoint(): Promise<FTPollCheckpoint> {
     return JSON.parse(result.rows[0].value) as FTPollCheckpoint;
   } catch {
     return {
-      last_customer_poll: null,
+      last_account_poll: null,
       last_order_poll: null,
       last_entry_poll: null,
     };
@@ -135,21 +145,46 @@ async function sendToQueue(messages: Array<{
 }
 
 /**
- * Polls for customers since the last checkpoint
+ * Polls for accounts since the last checkpoint
  */
 async function pollCustomers(since: string | null): Promise<{
-  customers: FTCustomer[];
+  customers: FTAccount[];
   errors: string[];
 }> {
   const errors: string[] = [];
   const ftClient = createFutureTicketingClient();
 
   try {
-    // Use ISO format for the API
-    const customers = await ftClient.getCustomers(since || undefined);
-    return { customers, errors };
+    // Use updatedSince filter via POST
+    const response = since
+      ? await ftClient.getAccounts({ updatedSince: toApiDate(since), expand: ['address', 'account_category'] })
+      : await ftClient.getAccounts({ page: 1 });
+
+    // Extract all pages for initial sync
+    let allAccounts = response.data || [];
+    let currentPage = response.currentpage || 1;
+    const limit = parseInt(response.limit || '20', 10);
+    const total = parseInt(response.total || '0', 0);
+
+    // If we have no checkpoint (first run), fetch all accounts up to a reasonable limit
+    if (!since && total > limit * 10) {
+      console.warn(`[FTPoller] First run would fetch ${total} accounts, limiting to ${limit * 10}`);
+    }
+
+    // Fetch remaining pages if needed
+    while (currentPage * limit < total && currentPage < 10) {
+      currentPage++;
+      const nextPage = since
+        ? await ftClient.getAccounts({ updatedSince: toApiDate(since), page: currentPage, expand: ['address', 'account_category'] })
+        : await ftClient.getAccounts({ page: currentPage });
+      if (nextPage.data?.length) {
+        allAccounts = allAccounts.concat(nextPage.data);
+      }
+    }
+
+    return { customers: allAccounts, errors };
   } catch (error) {
-    const errorMessage = `Failed to poll customers: ${error instanceof Error ? error.message : 'Unknown error'}`;
+    const errorMessage = `Failed to poll accounts: ${error instanceof Error ? error.message : 'Unknown error'}`;
     errors.push(errorMessage);
     console.error('[FTPoller]', errorMessage);
     return { customers: [], errors };
@@ -167,8 +202,37 @@ async function pollOrders(since: string | null): Promise<{
   const ftClient = createFutureTicketingClient();
 
   try {
-    const orders = await ftClient.getOrders(since || undefined);
-    return { orders, errors };
+    if (!since) {
+      // First run - use a default lookback of 30 days
+      const defaultStartDate = new Date();
+      defaultStartDate.setDate(defaultStartDate.getDate() - 30);
+      since = defaultStartDate.toISOString();
+    }
+
+    // Use date range up to now
+    const startDate = toApiDate(since);
+    const endDate = toApiDate(new Date().toISOString());
+
+    // Fetch all pages
+    let allOrders: FTOrder[] = [];
+    let page = 1;
+    let hasMore = true;
+
+    while (hasMore && page <= 50) {
+      const response = await ftClient.getOrdersByDate(startDate, endDate, { page, validOrder: true });
+      if (response.data?.length) {
+        allOrders = allOrders.concat(response.data);
+      }
+
+      // Check if there are more pages
+      const currentPage = response.currentpage || page;
+      const limit = parseInt(response.limit || '20', 10);
+      const total = parseInt(response.total || '0', 10);
+      hasMore = currentPage * limit < total;
+      page++;
+    }
+
+    return { orders: allOrders, errors };
   } catch (error) {
     const errorMessage = `Failed to poll orders: ${error instanceof Error ? error.message : 'Unknown error'}`;
     errors.push(errorMessage);
@@ -188,7 +252,18 @@ async function pollEntries(since: string | null): Promise<{
   const ftClient = createFutureTicketingClient();
 
   try {
-    const entries = await ftClient.getStadiumEntries(since || undefined);
+    if (!since) {
+      // First run - entries are derived from orders, so use same default
+      const defaultStartDate = new Date();
+      defaultStartDate.setDate(defaultStartDate.getDate() - 30);
+      since = defaultStartDate.toISOString();
+    }
+
+    // Use date range - entries are extracted from order barcode scans
+    const startDate = toApiDate(since);
+    const endDate = toApiDate(new Date().toISOString());
+
+    const entries = await ftClient.getStadiumEntries(startDate, endDate);
     return { entries, errors };
   } catch (error) {
     const errorMessage = `Failed to poll entries: ${error instanceof Error ? error.message : 'Unknown error'}`;
@@ -226,7 +301,7 @@ export const handler = async (_event: ScheduledEvent): Promise<{
 
     // Poll all three data sources in parallel
     const [customersResult, ordersResult, entriesResult] = await Promise.all([
-      pollCustomers(checkpoint.last_customer_poll),
+      pollCustomers(checkpoint.last_account_poll),
       pollOrders(checkpoint.last_order_poll),
       pollEntries(checkpoint.last_entry_poll),
     ]);
@@ -249,10 +324,10 @@ export const handler = async (_event: ScheduledEvent): Promise<{
     // Prepare messages for SQS
     const messages: Array<{ type: string; data: unknown }> = [];
 
-    for (const customer of customersResult.customers) {
+    for (const account of customersResult.customers) {
       messages.push({
-        type: 'customer',
-        data: customer,
+        type: 'account',
+        data: account,
       });
     }
 
@@ -279,7 +354,7 @@ export const handler = async (_event: ScheduledEvent): Promise<{
     // Update checkpoint (always update, even if no new data)
     // This ensures we don't re-poll the same time range
     const newCheckpoint: FTPollCheckpoint = {
-      last_customer_poll: newPollTimestamp,
+      last_account_poll: newPollTimestamp,
       last_order_poll: newPollTimestamp,
       last_entry_poll: newPollTimestamp,
     };
@@ -295,7 +370,7 @@ export const handler = async (_event: ScheduledEvent): Promise<{
     // Emit CloudWatch custom metrics via console.log
     console.log('FT_POLL_METRICS', JSON.stringify({
       timestamp: new Date().toISOString(),
-      customers_found: result.customers_found,
+      accounts_found: result.customers_found,
       orders_found: result.orders_found,
       entries_found: result.entries_found,
       total_queued: result.total_queued,

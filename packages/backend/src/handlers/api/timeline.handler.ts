@@ -143,7 +143,7 @@ export const handler = requireAuth(async (
     }
 
     const { eventTypes, limit, offset, startDate, endDate } =
-      parseQueryParams(event.queryStringParameters as TimelineQueryParams);
+      parseQueryParams((event.queryStringParameters || {}) as TimelineQueryParams);
 
     // Get timeline events
     const events = await eventRepo.findBySupporterId(
