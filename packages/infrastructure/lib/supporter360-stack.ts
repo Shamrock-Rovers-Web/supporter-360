@@ -183,7 +183,7 @@ export class Supporter360Stack extends cdk.Stack {
     // ========================================
     const shopifyWebhookHandler = new lambda.Function(this, 'ShopifyWebhookHandler', {
       runtime: lambda.Runtime.NODEJS_18_X,
-      handler: 'handlers/webhooks/shopify.handler',
+      handler: 'handlers/webhooks/shopify-webhook.handler',
       code: lambda.Code.fromAsset('../backend/dist'),
       timeout: cdk.Duration.seconds(30),
       environment: {
@@ -194,7 +194,7 @@ export class Supporter360Stack extends cdk.Stack {
 
     const stripeWebhookHandler = new lambda.Function(this, 'StripeWebhookHandler', {
       runtime: lambda.Runtime.NODEJS_18_X,
-      handler: 'handlers/webhooks/stripe.handler',
+      handler: 'handlers/webhooks/stripe-webhook.handler',
       code: lambda.Code.fromAsset('../backend/dist'),
       timeout: cdk.Duration.seconds(30),
       environment: {
@@ -205,7 +205,7 @@ export class Supporter360Stack extends cdk.Stack {
 
     const gocardlessWebhookHandler = new lambda.Function(this, 'GoCardlessWebhookHandler', {
       runtime: lambda.Runtime.NODEJS_18_X,
-      handler: 'handlers/webhooks/gocardless.handler',
+      handler: 'handlers/webhooks/gocardless-webhook.handler',
       code: lambda.Code.fromAsset('../backend/dist'),
       timeout: cdk.Duration.seconds(30),
       environment: {
@@ -216,7 +216,7 @@ export class Supporter360Stack extends cdk.Stack {
 
     const mailchimpWebhookHandler = new lambda.Function(this, 'MailchimpWebhookHandler', {
       runtime: lambda.Runtime.NODEJS_18_X,
-      handler: 'handlers/webhooks/mailchimp.handler',
+      handler: 'handlers/webhooks/mailchimp-webhook.handler',
       code: lambda.Code.fromAsset('../backend/dist'),
       timeout: cdk.Duration.seconds(30),
       environment: {
@@ -240,7 +240,7 @@ export class Supporter360Stack extends cdk.Stack {
     // ========================================
     const shopifyProcessor = new lambda.Function(this, 'ShopifyProcessor', {
       runtime: lambda.Runtime.NODEJS_18_X,
-      handler: 'handlers/processors/shopify.processor.handler',
+      handler: 'handlers/processors/shopify-processor.handler',
       code: lambda.Code.fromAsset('../backend/dist'),
       timeout: cdk.Duration.seconds(300),
       vpc,
@@ -251,7 +251,7 @@ export class Supporter360Stack extends cdk.Stack {
 
     const stripeProcessor = new lambda.Function(this, 'StripeProcessor', {
       runtime: lambda.Runtime.NODEJS_18_X,
-      handler: 'handlers/processors/stripe.processor.handler',
+      handler: 'handlers/processors/stripe-processor.handler',
       code: lambda.Code.fromAsset('../backend/dist'),
       timeout: cdk.Duration.seconds(300),
       vpc,
@@ -262,7 +262,7 @@ export class Supporter360Stack extends cdk.Stack {
 
     const gocardlessProcessor = new lambda.Function(this, 'GoCardlessProcessor', {
       runtime: lambda.Runtime.NODEJS_18_X,
-      handler: 'handlers/processors/gocardless.processor.handler',
+      handler: 'handlers/processors/gocardless-processor.handler',
       code: lambda.Code.fromAsset('../backend/dist'),
       timeout: cdk.Duration.seconds(300),
       vpc,
@@ -273,7 +273,7 @@ export class Supporter360Stack extends cdk.Stack {
 
     const futureTicketingProcessor = new lambda.Function(this, 'FutureTicketingProcessor', {
       runtime: lambda.Runtime.NODEJS_18_X,
-      handler: 'handlers/processors/future-ticketing.processor.handler',
+      handler: 'handlers/processors/futureticketing-processor.handler',
       code: lambda.Code.fromAsset('../backend/dist'),
       timeout: cdk.Duration.seconds(300),
       vpc,
@@ -284,7 +284,7 @@ export class Supporter360Stack extends cdk.Stack {
 
     const mailchimpProcessor = new lambda.Function(this, 'MailchimpProcessor', {
       runtime: lambda.Runtime.NODEJS_18_X,
-      handler: 'handlers/processors/mailchimp.processor.handler',
+      handler: 'handlers/processors/mailchimp-processor.handler',
       code: lambda.Code.fromAsset('../backend/dist'),
       timeout: cdk.Duration.seconds(300),
       vpc,

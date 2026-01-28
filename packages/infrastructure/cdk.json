@@ -1,5 +1,9 @@
 {
-  "app": "npx ts-node --prefer-ts-exts bin/app.ts",
+  "app": "node bin/app.js",
+  "env": {
+    "account": "950596328856",
+    "region": "eu-west-1"
+  },
   "watch": {
     "include": [
       "**"
