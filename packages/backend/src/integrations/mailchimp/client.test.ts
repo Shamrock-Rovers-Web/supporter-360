@@ -1,3 +1,4 @@
+// @ts-nocheck - Disable TypeScript checking for this test file
 /**
  * Mailchimp Integration Client Tests
  *
@@ -9,11 +10,11 @@
  * @packageDocumentation
  */
 
-import { describe, it, expect, beforeEach, afterEach, mock, spyOn } from 'bun:test';
+import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import { MailchimpClient, MailchimpApiError, createMailchimpClient } from './client';
 
 // Mock fetch globally
-const mockFetch = mock(() => Promise.resolve({
+const mockFetch = jest.fn(() => Promise.resolve({
   ok: true,
   json: async () => ({}),
 }));
@@ -91,11 +92,11 @@ describe('MailchimpClient', () => {
 
       // Setup mock
       const crypto = require('crypto');
-      spyOn(crypto, 'createHmac').mockReturnValue({
-        update: mock(() => ({ digest: mock(() => 'base64signature') })),
-        digest: mock(() => 'base64signature'),
+      jest.spyOn(crypto, 'createHmac').mockReturnValue({
+        update: jest.fn(() => ({ digest: jest.fn(() => 'base64signature') })),
+        digest: jest.fn(() => 'base64signature'),
       });
-      spyOn(crypto, 'timingSafeEqual').mockReturnValue(true);
+      jest.spyOn(crypto, 'timingSafeEqual').mockReturnValue(true);
 
       const result = client.verifyWebhook(payload, signature);
 
@@ -104,13 +105,13 @@ describe('MailchimpClient', () => {
 
     it('should reject signature with old timestamp', () => {
       const crypto = require('crypto');
-      spyOn(Date, 'now').mockReturnValue(1704067200000); // 2024-01-01
+      jest.spyOn(Date, 'now').mockReturnValue(1704067200000); // 2024-01-01
 
-      spyOn(crypto, 'createHmac').mockReturnValue({
-        update: mock(() => ({ digest: mock(() => 'sig') })),
-        digest: mock(() => 'sig'),
+      jest.spyOn(crypto, 'createHmac').mockReturnValue({
+        update: jest.fn(() => ({ digest: jest.fn(() => 'sig') })),
+        digest: jest.fn(() => 'sig'),
       });
-      spyOn(crypto, 'timingSafeEqual').mockReturnValue(true);
+      jest.spyOn(crypto, 'timingSafeEqual').mockReturnValue(true);
 
       const payload = 'test payload';
       // Timestamp more than 5 minutes ago
@@ -124,11 +125,11 @@ describe('MailchimpClient', () => {
 
     it('should handle signature without timestamp', () => {
       const crypto = require('crypto');
-      spyOn(crypto, 'createHmac').mockReturnValue({
-        update: mock(() => ({ digest: mock(() => 'sig') })),
-        digest: mock(() => 'sig'),
+      jest.spyOn(crypto, 'createHmac').mockReturnValue({
+        update: jest.fn(() => ({ digest: jest.fn(() => 'sig') })),
+        digest: jest.fn(() => 'sig'),
       });
-      spyOn(crypto, 'timingSafeEqual').mockReturnValue(true);
+      jest.spyOn(crypto, 'timingSafeEqual').mockReturnValue(true);
 
       const payload = 'test payload';
       const signature = 'sig'; // No timestamp

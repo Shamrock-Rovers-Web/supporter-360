@@ -1,3 +1,4 @@
+// @ts-nocheck - Disable TypeScript checking for this test file
 /**
  * Stripe Integration Client Tests
  *
@@ -9,11 +10,11 @@
  * @packageDocumentation
  */
 
-import { describe, it, expect, beforeEach, afterEach, mock, spyOn } from 'bun:test';
+import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import { StripeClient, StripeApiError, createStripeClient, createStripeWebhookSecret } from './client';
 
 // Mock fetch globally
-const mockFetch = mock(() => Promise.resolve({
+const mockFetch = jest.fn(() => Promise.resolve({
   ok: true,
   json: async () => ({}),
 }));
@@ -29,15 +30,12 @@ describe('StripeClient', () => {
     mockFetch.mockClear();
     client = new StripeClient(mockConfig);
     // Mock current time for timestamp verification
-    spyOn(Date, 'now').mockReturnValue(1704067200000); // 2024-01-01 00:00:00 UTC
+    jest.spyOn(Date, 'now').mockReturnValue(1704067200000); // 2024-01-01 00:00:00 UTC
   });
 
   afterEach(() => {
     // Restore Date.now mock
-    const dateSpy = Date.now as any;
-    if (dateSpy.mockRestore) {
-      dateSpy.mockRestore();
-    }
+    jest.restoreAllMocks();
   });
 
   // ==========================================================================
@@ -87,13 +85,13 @@ describe('StripeClient', () => {
       const signature = `t=${timestamp},v1=valid-signature`;
 
       const mockHmac = {
-        update: mock(() => mockHmac),
-        digest: mock(() => 'valid-signature'),
+        update: jest.fn(() => mockHmac),
+        digest: jest.fn(() => 'valid-signature'),
       };
 
       const crypto = require('crypto');
-      spyOn(crypto, 'createHmac').mockReturnValue(mockHmac);
-      spyOn(crypto, 'timingSafeEqual').mockReturnValue(true);
+      jest.spyOn(crypto, 'createHmac').mockReturnValue(mockHmac);
+      jest.spyOn(crypto, 'timingSafeEqual').mockReturnValue(true);
 
       const result = client.verifyWebhook(payload, signature, secret);
 
@@ -147,13 +145,13 @@ describe('StripeClient', () => {
       const signature = `t=${timestamp},v1=valid`;
 
       const mockHmac = {
-        update: mock(() => mockHmac),
-        digest: mock(() => 'valid'),
+        update: jest.fn(() => mockHmac),
+        digest: jest.fn(() => 'valid'),
       };
 
       const crypto = require('crypto');
-      spyOn(crypto, 'createHmac').mockReturnValue(mockHmac);
-      spyOn(crypto, 'timingSafeEqual').mockReturnValue(true);
+      jest.spyOn(crypto, 'createHmac').mockReturnValue(mockHmac);
+      jest.spyOn(crypto, 'timingSafeEqual').mockReturnValue(true);
 
       const result = client.verifyWebhook(payload, signature, secret);
 
@@ -174,13 +172,13 @@ describe('StripeClient', () => {
       const signature = `t=${timestamp},v1=valid`;
 
       const mockHmac = {
-        update: mock(() => mockHmac),
-        digest: mock(() => 'valid'),
+        update: jest.fn(() => mockHmac),
+        digest: jest.fn(() => 'valid'),
       };
 
       const crypto = require('crypto');
-      spyOn(crypto, 'createHmac').mockReturnValue(mockHmac);
-      spyOn(crypto, 'timingSafeEqual').mockReturnValue(true);
+      jest.spyOn(crypto, 'createHmac').mockReturnValue(mockHmac);
+      jest.spyOn(crypto, 'timingSafeEqual').mockReturnValue(true);
 
       const result = client.verifyAndParseWebhook(
         payload,
@@ -199,13 +197,13 @@ describe('StripeClient', () => {
       const signature = `t=${timestamp},v1=valid`;
 
       const mockHmac = {
-        update: mock(() => mockHmac),
-        digest: mock(() => 'valid'),
+        update: jest.fn(() => mockHmac),
+        digest: jest.fn(() => 'valid'),
       };
 
       const crypto = require('crypto');
-      spyOn(crypto, 'createHmac').mockReturnValue(mockHmac);
-      spyOn(crypto, 'timingSafeEqual').mockReturnValue(true);
+      jest.spyOn(crypto, 'createHmac').mockReturnValue(mockHmac);
+      jest.spyOn(crypto, 'timingSafeEqual').mockReturnValue(true);
 
       const result = client.verifyAndParseWebhook(
         payload,
@@ -223,13 +221,13 @@ describe('StripeClient', () => {
       const signature = `t=${timestamp},v1=valid`;
 
       const mockHmac = {
-        update: mock(() => mockHmac),
-        digest: mock(() => 'valid'),
+        update: jest.fn(() => mockHmac),
+        digest: jest.fn(() => 'valid'),
       };
 
       const crypto = require('crypto');
-      spyOn(crypto, 'createHmac').mockReturnValue(mockHmac);
-      spyOn(crypto, 'timingSafeEqual').mockReturnValue(true);
+      jest.spyOn(crypto, 'createHmac').mockReturnValue(mockHmac);
+      jest.spyOn(crypto, 'timingSafeEqual').mockReturnValue(true);
 
       const result = client.verifyAndParseWebhook(payload, signature, secret);
 
@@ -243,13 +241,13 @@ describe('StripeClient', () => {
       const signature = `t=${timestamp},v1=invalid`;
 
       const mockHmac = {
-        update: mock(() => mockHmac),
-        digest: mock(() => 'different'),
+        update: jest.fn(() => mockHmac),
+        digest: jest.fn(() => 'different'),
       };
 
       const crypto = require('crypto');
-      spyOn(crypto, 'createHmac').mockReturnValue(mockHmac);
-      spyOn(crypto, 'timingSafeEqual').mockReturnValue(false);
+      jest.spyOn(crypto, 'createHmac').mockReturnValue(mockHmac);
+      jest.spyOn(crypto, 'timingSafeEqual').mockReturnValue(false);
 
       const result = client.verifyAndParseWebhook(payload, signature, secret);
 
@@ -272,7 +270,7 @@ describe('StripeClient', () => {
       mockFetch.mockResolvedValue({
         ok: true,
         json: async () => ({ customer: mockCustomer }),
-      } as Response);
+      });
 
       const result = await client.getCustomer('cus_123');
 
@@ -292,7 +290,7 @@ describe('StripeClient', () => {
         ok: false,
         status: 404,
         text: async () => 'Not Found',
-      } as Response);
+      });
 
       const result = await client.getCustomer('cus_nonexistent');
 
@@ -304,7 +302,7 @@ describe('StripeClient', () => {
         ok: false,
         status: 500,
         text: async () => 'Internal Server Error',
-      } as Response);
+      });
 
       await expect(client.getCustomer('cus_123')).rejects.toThrow(StripeApiError);
     });
@@ -322,7 +320,7 @@ describe('StripeClient', () => {
       mockFetch.mockResolvedValue({
         ok: true,
         json: async () => ({ payment_intent: mockPaymentIntent }),
-      } as Response);
+      });
 
       const result = await client.getPaymentIntent('pi_123');
 
@@ -334,7 +332,7 @@ describe('StripeClient', () => {
         ok: false,
         status: 404,
         text: async () => 'Not Found',
-      } as Response);
+      });
 
       const result = await client.getPaymentIntent('pi_nonexistent');
 
@@ -352,7 +350,7 @@ describe('StripeClient', () => {
       mockFetch.mockResolvedValue({
         ok: true,
         json: async () => ({ data: mockCharges }),
-      } as Response);
+      });
 
       const result = await client.listCharges('cus_123');
 
@@ -365,7 +363,7 @@ describe('StripeClient', () => {
       mockFetch.mockResolvedValue({
         ok: true,
         json: async () => ({ data: [] }),
-      } as Response);
+      });
 
       await client.listCharges('cus_123', 50);
 
@@ -377,7 +375,7 @@ describe('StripeClient', () => {
       mockFetch.mockResolvedValue({
         ok: true,
         json: async () => ({ data: [] }),
-      } as Response);
+      });
 
       await client.listCharges('cus_123', 200);
 
@@ -398,7 +396,7 @@ describe('StripeClient', () => {
       mockFetch.mockResolvedValue({
         ok: true,
         json: async () => ({ charge: mockCharge }),
-      } as Response);
+      });
 
       const result = await client.getCharge('ch_123');
 
@@ -412,7 +410,7 @@ describe('StripeClient', () => {
       mockFetch.mockResolvedValue({
         ok: true,
         json: async () => ({ data: mockCharges }),
-      } as Response);
+      });
 
       const result = await client.listChargesSince(1704067200);
 
@@ -434,11 +432,11 @@ describe('StripeClient', () => {
           status: 429,
           headers: new Headers({ 'Retry-After': '1' }),
           text: async () => 'Too Many Requests',
-        } as Response)
+        })
         .mockResolvedValueOnce({
           ok: true,
           json: async () => ({ customer: { id: 'cus_1' } }),
-        } as Response);
+        });
 
       const result = await client.getCustomer('cus_1');
 
@@ -453,11 +451,11 @@ describe('StripeClient', () => {
           status: 429,
           headers: new Headers(),
           text: async () => 'Too Many Requests',
-        } as Response)
+        })
         .mockResolvedValueOnce({
           ok: true,
           json: async () => ({ customer: { id: 'cus_1' } }),
-        } as Response);
+        });
 
       const result = await client.getCustomer('cus_1');
 
@@ -470,7 +468,7 @@ describe('StripeClient', () => {
         ok: false,
         status: 400,
         text: async () => 'Bad Request',
-      } as Response);
+      });
 
       await expect(client.getCustomer('cus_1')).rejects.toThrow(StripeApiError);
       expect(mockFetch).toHaveBeenCalledTimes(1);
@@ -481,7 +479,7 @@ describe('StripeClient', () => {
         ok: false,
         status: 402,
         text: async () => 'Payment Required',
-      } as Response);
+      });
 
       try {
         await client.getCustomer('cus_1');

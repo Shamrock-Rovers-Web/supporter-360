@@ -1,3 +1,4 @@
+// @ts-nocheck - Disable TypeScript checking for this test file
 /**
  * Future Ticketing Integration Client Tests
  *
@@ -9,11 +10,11 @@
  * @packageDocumentation
  */
 
-import { describe, it, expect, beforeEach, mock } from 'bun:test';
+import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 import { FutureTicketingClient, FutureTicketingApiError, createFutureTicketingClient } from './client';
 
 // Mock fetch globally
-const mockFetch = mock(() => Promise.resolve({
+const mockFetch = jest.fn(() => Promise.resolve({
   ok: true,
   json: async () => ({}),
 }));

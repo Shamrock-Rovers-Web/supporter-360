@@ -1,3 +1,4 @@
+// @ts-nocheck - Disable TypeScript checking for this test file
 /**
  * GoCardless Integration Client Tests
  *
@@ -9,11 +10,11 @@
  * @packageDocumentation
  */
 
-import { describe, it, expect, beforeEach, afterEach, mock, spyOn } from 'bun:test';
+import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import { GoCardlessClient, GoCardlessApiError, createGoCardlessClient, createGoCardlessWebhookSecret } from './client';
 
 // Mock fetch globally
-const mockFetch = mock(() => Promise.resolve({
+const mockFetch = jest.fn(() => Promise.resolve({
   ok: true,
   json: async () => ({}),
 }));
@@ -73,13 +74,13 @@ describe('GoCardlessClient', () => {
       const signature = 'sha256 valid-signature';
 
       const mockHmac = {
-        update: mock(() => mockHmac),
-        digest: mock(() => 'valid-signature'),
+        update: jest.fn(() => mockHmac),
+        digest: jest.fn(() => 'valid-signature'),
       };
 
       const crypto = require('crypto');
-      spyOn(crypto, 'createHmac').mockReturnValue(mockHmac);
-      spyOn(crypto, 'timingSafeEqual').mockReturnValue(true);
+      jest.spyOn(crypto, 'createHmac').mockReturnValue(mockHmac);
+      jest.spyOn(crypto, 'timingSafeEqual').mockReturnValue(true);
 
       const result = client.verifyWebhook(requestBody, signature, secret);
 
@@ -100,13 +101,13 @@ describe('GoCardlessClient', () => {
       const signature = 'sha256 wrong-signature';
 
       const mockHmac = {
-        update: mock(() => mockHmac),
-        digest: mock(() => 'correct-signature'),
+        update: jest.fn(() => mockHmac),
+        digest: jest.fn(() => 'correct-signature'),
       };
 
       const crypto = require('crypto');
-      spyOn(crypto, 'createHmac').mockReturnValue(mockHmac);
-      spyOn(crypto, 'timingSafeEqual').mockReturnValue(false);
+      jest.spyOn(crypto, 'createHmac').mockReturnValue(mockHmac);
+      jest.spyOn(crypto, 'timingSafeEqual').mockReturnValue(false);
 
       const result = client.verifyWebhook(requestBody, signature, secret);
 
@@ -118,13 +119,13 @@ describe('GoCardlessClient', () => {
       const signature = 'sha256 sig';
 
       const mockHmac = {
-        update: mock(() => mockHmac),
-        digest: mock(() => 'sig'),
+        update: jest.fn(() => mockHmac),
+        digest: jest.fn(() => 'sig'),
       };
 
       const crypto = require('crypto');
-      spyOn(crypto, 'createHmac').mockReturnValue(mockHmac);
-      spyOn(crypto, 'timingSafeEqual').mockReturnValue(true);
+      jest.spyOn(crypto, 'createHmac').mockReturnValue(mockHmac);
+      jest.spyOn(crypto, 'timingSafeEqual').mockReturnValue(true);
 
       client.verifyWebhook(requestBody, signature, secret);
 
@@ -137,13 +138,13 @@ describe('GoCardlessClient', () => {
       const signature = 'sha256 sig';
 
       const mockHmac = {
-        update: mock(() => mockHmac),
-        digest: mock(() => 'sig'),
+        update: jest.fn(() => mockHmac),
+        digest: jest.fn(() => 'sig'),
       };
 
       const crypto = require('crypto');
-      spyOn(crypto, 'createHmac').mockReturnValue(mockHmac);
-      spyOn(crypto, 'timingSafeEqual').mockImplementation(() => {
+      jest.spyOn(crypto, 'createHmac').mockReturnValue(mockHmac);
+      jest.spyOn(crypto, 'timingSafeEqual').mockImplementation(() => {
         throw new Error('Length mismatch');
       });
 
@@ -169,13 +170,13 @@ describe('GoCardlessClient', () => {
       const signature = 'sha256 valid';
 
       const mockHmac = {
-        update: mock(() => mockHmac),
-        digest: mock(() => 'valid'),
+        update: jest.fn(() => mockHmac),
+        digest: jest.fn(() => 'valid'),
       };
 
       const crypto = require('crypto');
-      spyOn(crypto, 'createHmac').mockReturnValue(mockHmac);
-      spyOn(crypto, 'timingSafeEqual').mockReturnValue(true);
+      jest.spyOn(crypto, 'createHmac').mockReturnValue(mockHmac);
+      jest.spyOn(crypto, 'timingSafeEqual').mockReturnValue(true);
 
       const result = client.parseWebhook(requestBody, signature, secret);
 
@@ -189,13 +190,13 @@ describe('GoCardlessClient', () => {
       const signature = 'sha256 invalid';
 
       const mockHmac = {
-        update: mock(() => mockHmac),
-        digest: mock(() => 'different'),
+        update: jest.fn(() => mockHmac),
+        digest: jest.fn(() => 'different'),
       };
 
       const crypto = require('crypto');
-      spyOn(crypto, 'createHmac').mockReturnValue(mockHmac);
-      spyOn(crypto, 'timingSafeEqual').mockReturnValue(false);
+      jest.spyOn(crypto, 'createHmac').mockReturnValue(mockHmac);
+      jest.spyOn(crypto, 'timingSafeEqual').mockReturnValue(false);
 
       const result = client.parseWebhook(requestBody, signature, secret);
 
@@ -209,13 +210,13 @@ describe('GoCardlessClient', () => {
       const signature = 'sha256 sig';
 
       const mockHmac = {
-        update: mock(() => mockHmac),
-        digest: mock(() => 'sig'),
+        update: jest.fn(() => mockHmac),
+        digest: jest.fn(() => 'sig'),
       };
 
       const crypto = require('crypto');
-      spyOn(crypto, 'createHmac').mockReturnValue(mockHmac);
-      spyOn(crypto, 'timingSafeEqual').mockReturnValue(true);
+      jest.spyOn(crypto, 'createHmac').mockReturnValue(mockHmac);
+      jest.spyOn(crypto, 'timingSafeEqual').mockReturnValue(true);
 
       const result = client.parseWebhook(requestBody, signature, secret);
 
@@ -229,13 +230,13 @@ describe('GoCardlessClient', () => {
       const signature = 'sha256 sig';
 
       const mockHmac = {
-        update: mock(() => mockHmac),
-        digest: mock(() => 'sig'),
+        update: jest.fn(() => mockHmac),
+        digest: jest.fn(() => 'sig'),
       };
 
       const crypto = require('crypto');
-      spyOn(crypto, 'createHmac').mockReturnValue(mockHmac);
-      spyOn(crypto, 'timingSafeEqual').mockReturnValue(true);
+      jest.spyOn(crypto, 'createHmac').mockReturnValue(mockHmac);
+      jest.spyOn(crypto, 'timingSafeEqual').mockReturnValue(true);
 
       const result = client.parseWebhook(requestBody, signature, secret);
 
