@@ -10,7 +10,8 @@
     "build": "npm run build --workspace=@supporter360/shared && npm run build --workspace=@supporter360/database && npm run build --workspace=@supporter360/backend",
     "test": "npm run test --workspaces",
     "lint": "npm run lint --workspaces",
-    "dev:frontend": "npm run dev --workspace=@supporter-360/frontend"
+    "dev:frontend": "npm run dev --workspace=@supporter-360/frontend",
+    "validate": "./scripts/validate-build.sh"
   },
   "devDependencies": {
     "@types/node": "^20.10.0",
