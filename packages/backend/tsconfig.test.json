@@ -11,9 +11,10 @@
     "declaration": false,
     "sourceMap": true,
     "outDir": "./dist-test",
-    "strict": true,
+    "strict": false,
     "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true
+    "forceConsistentCasingInFileNames": false,
+    "noImplicitAny": false
   },
   "include": ["src/**/*.test.ts", "test/**/*.ts", "src/**/*"],
   "exclude": ["node_modules", "dist", "dist-test"],

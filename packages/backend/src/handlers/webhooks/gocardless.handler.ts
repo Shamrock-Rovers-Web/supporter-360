@@ -15,7 +15,7 @@ if (!GOCARDLESS_WEBHOOK_SECRET) {
   throw new Error('GOCARDLESS_WEBHOOK_SECRET environment variable is required');
 }
 
-export const handler: APIGatewayProxyHandler = async (
+export const handler = async (
   event: APIGatewayProxyEvent
 ): Promise<APIGatewayProxyResult> => {
   try {

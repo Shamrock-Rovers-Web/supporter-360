@@ -11,7 +11,7 @@ const QUEUE_URL = process.env.MAILCHIMP_QUEUE_URL!;
 const BUCKET_NAME = process.env.RAW_PAYLOADS_BUCKET!;
 const MAILCHIMP_WEBHOOK_SECRET = process.env.MAILCHIMP_WEBHOOK_SECRET;
 
-export const handler: APIGatewayProxyHandler = async (
+export const handler = async (
   event: APIGatewayProxyEvent
 ): Promise<APIGatewayProxyResult> => {
   try {
