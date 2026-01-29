@@ -12,16 +12,15 @@
  * @packageDocumentation
  */
 
+// @ts-nocheck - Disable TypeScript checking for this test file
 import { describe, it, expect, beforeEach, jest } from '@jest/globals';
-import { MembershipRepository, MembershipNotFoundError, MembershipConflictError } from './membership.repository';
 
-// Mock the connection module
-const mockQuery = jest.fn();
-
+// Mock the connection module BEFORE importing
 jest.mock('../connection', () => ({
-  query: mockQuery,
+  query: jest.fn(),
 }));
 
+import { MembershipRepository, MembershipNotFoundError, MembershipConflictError } from './membership.repository';
 import { query } from '../connection';
 import type {
   Membership,
@@ -30,6 +29,9 @@ import type {
   MembershipCadence,
   BillingMethod,
 } from '@supporter360/shared';
+
+// Get reference to the mocked function
+const mockQuery = query as jest.MockedFunction<any>;
 
 describe('MembershipRepository', () => {
   let repository: MembershipRepository;

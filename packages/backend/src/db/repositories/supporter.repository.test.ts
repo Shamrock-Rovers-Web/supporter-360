@@ -12,25 +12,22 @@
  * @packageDocumentation
  */
 
+// @ts-nocheck - Disable TypeScript checking for this test file
 import { describe, it, expect, beforeEach, jest } from '@jest/globals';
-import { SupporterRepository, SupporterNotFoundError, MergeConflictError } from './supporter.repository';
-import type { Supporter, SearchResult, SupporterProfile } from '@supporter360/shared';
 
-// Mock the connection module
-const mockQuery = jest.fn();
-const mockTransaction = jest.fn();
-
+// Mock the connection module BEFORE importing
 jest.mock('../connection', () => ({
-  query: mockQuery,
-  transaction: mockTransaction,
+  query: jest.fn(),
+  transaction: jest.fn(),
 }));
 
+import { SupporterRepository, SupporterNotFoundError, MergeConflictError } from './supporter.repository';
+import type { Supporter, SearchResult, SupporterProfile } from '@supporter360/shared';
 import { query, transaction } from '../connection';
 
-// @ts-ignore - Suppress TypeScript errors for mock function calls
-const _mockQuery = mockQuery as any;
-// @ts-ignore - Suppress TypeScript errors for mock function calls
-const _mockTransaction = mockTransaction as any;
+// Get references to the mocked functions
+const mockQuery = query as jest.MockedFunction<any>;
+const mockTransaction = transaction as jest.MockedFunction<any>;
 
 describe('SupporterRepository', () => {
   let repository: SupporterRepository;

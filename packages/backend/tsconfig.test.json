@@ -18,7 +18,11 @@
     "strictNullChecks": false,
     "strictFunctionTypes": false,
     "noImplicitReturns": false,
-    "noImplicitThis": false
+    "noImplicitThis": false,
+    "noErrorTruncation": true
+  },
+  "ts-node": {
+    "transpileOnly": true
   },
   "include": ["src/**/*.test.ts", "test/**/*.ts", "src/**/*"],
   "exclude": ["node_modules", "dist", "dist-test"],
