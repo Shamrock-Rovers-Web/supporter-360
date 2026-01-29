@@ -191,3 +191,44 @@ This critical phase establishes the foundation for all integration work by fixin
 - Build validation script for future phases
 - Documentation of test failures and fixes applied
 - Fully functional test suite that validates code quality
+
+---
+
+## Pending Actions
+
+### ⚠️ GitHub Push Blocked by Secret Protection
+
+**Status:** 11 commits ready to push, blocked by historical secrets
+
+**Issue:** Old commit `9e2cc655` contains Stripe and Mailchimp API keys in documentation files (`docs/NEXT-STEPS.md`, `docs/SECURITY-REMEDIATION.md`). GitHub Push Protection is blocking all pushes until these historical secrets are resolved.
+
+**Commits waiting:**
+```
+a03c2b4 MAESTRO: Added validation script implementation summary document
+e38fa13 MAESTRO: Created end-to-end build and test validation script
+68734be MAESTRO: Documented test suite results - Phase 01 task complete
+9ed7593 MAESTRO: Updated Phase-01 document with build system verification status
+e702b40 MAESTRO: Fixed API handler tests - updated handler signatures and mock setup
+641192d MAESTRO: Updated Phase-01 document with integration client test status
+bf901d0 MAESTRO: Migrated 5 integration client tests from bun:test to Jest
+5728740 MAESTRO: Fixed Jest mock setup in repository tests
+5d1113a MAESTRO: Updated repository tests to use Jest instead of bun:test
+8fd7d11 MAESTRO: Fixed webhook handler signatures and test TypeScript config
+9e2cc655 MAESTRO: Fixed processor test handler signatures - updated from 2-param to 1-param calls
+```
+
+**Next Steps (After Security Cleanup):**
+1. **Option A - Allow secrets via GitHub UI (Recommended):**
+   - Stripe unblock: https://github.com/Shamrock-Rovers-Web/supporter-360/security/secret-scanning/unblock-secret/38wK3oDf6GfXPQuCcRZhalVXgqb
+   - Mailchimp unblock: https://github.com/Shamrock-Rovers-Web/supporter-360/security/secret-scanning/unblock-secret/38wK3q3KeyJuDRllb7Me5Mt3c3n
+   - Then run: `git push origin main`
+
+2. **Option B - Remove secrets from commit history:**
+   - Use `git filter-repo` or `BFG Repo-Cleaner` to remove secrets from historical commit
+   - Force push with rewritten history (⚠️ affects collaborators)
+
+3. **Option C - Remove secret-containing files:**
+   - Delete `docs/NEXT-STEPS.md` and `docs/SECURITY-REMEDIATION.md` if no longer needed
+   - Commit deletion, then push
+
+**Note:** This is a non-blocking issue for local development - all work is saved locally and ready to push when secrets are resolved.
