@@ -11,35 +11,43 @@
  * @packageDocumentation
  */
 
+// @ts-nocheck
+
+// Create mock repository that will be used by the handler
+const mockEventRepository = {
+  findBySupporterId: jest.fn(),
+  getCount: jest.fn(),
+} as any;
+
+// Mock auth middleware to bypass authentication
+jest.mock('../../middleware/auth', () => ({
+  requireAuth: jest.fn((fn) => async (event: any) => {
+    return fn(event, { role: 'staff', keyName: 'test-key' });
+  }),
+  validateApiKey: jest.fn(),
+  AuthContext: {},
+}));
+
+// Mock the repositories before importing the handler
+jest.mock('../../db/repositories/event.repository', () => ({
+  EventRepository: jest.fn().mockImplementation(() => mockEventRepository),
+}));
+
+jest.mock('../../db/repositories/supporter.repository', () => ({
+  SupporterNotFoundError: class extends Error {
+    constructor(message: string) {
+      super(message);
+      this.name = 'SupporterNotFoundError';
+    }
+  },
+}));
+
 import { handler } from './timeline.handler';
 import { APIGatewayProxyEvent } from 'aws-lambda';
-import { EventRepository } from '../../db/repositories/event.repository';
-import { SupporterNotFoundError } from '../../db/repositories/supporter.repository';
-
-// Mock the repositories
-jest.mock('../../db/repositories/event.repository');
-jest.mock('../../db/repositories/supporter.repository');
-jest.mock('../../middleware/auth');
 
 describe('Timeline API Handler', () => {
-  let mockEventRepository: jest.Mocked<EventRepository>;
-  let mockRequireAuth: jest.Mock;
-
   beforeEach(() => {
     jest.clearAllMocks();
-    mockEventRepository = {
-      findBySupporterId: jest.fn(),
-      getCount: jest.fn(),
-    } as any;
-    (require('../../db/repositories/event.repository') as any).EventRepository = function () {
-      return mockEventRepository;
-    };
-
-    // Mock auth middleware
-    mockRequireAuth = jest.fn().mockImplementation((fn) => async (event: any) => {
-      return fn(event, { role: 'staff', keyName: 'test-key' });
-    });
-    (require('../../middleware/auth') as any).requireAuth = mockRequireAuth;
   });
 
   // ==========================================================================
@@ -78,7 +86,7 @@ describe('Timeline API Handler', () => {
         pathParameters: {},
       });
 
-      const result = await handler(event as APIGatewayProxyEvent, {} as any);
+      const result = await handler(event as APIGatewayProxyEvent);
       const response = JSON.parse(result.body);
 
       expect(result.statusCode).toBe(400);
@@ -91,7 +99,7 @@ describe('Timeline API Handler', () => {
         pathParameters: { id: '' },
       });
 
-      const result = await handler(event as APIGatewayProxyEvent, {} as any);
+      const result = await handler(event as APIGatewayProxyEvent);
       const response = JSON.parse(result.body);
 
       expect(result.statusCode).toBe(400);
@@ -113,7 +121,7 @@ describe('Timeline API Handler', () => {
         pathParameters: { id: 'supp-123' },
       });
 
-      const result = await handler(event as APIGatewayProxyEvent, {} as any);
+      const result = await handler(event as APIGatewayProxyEvent);
       const response = JSON.parse(result.body);
 
       expect(result.statusCode).toBe(200);
@@ -139,7 +147,7 @@ describe('Timeline API Handler', () => {
         pathParameters: { id: 'supp-123' },
       });
 
-      const result = await handler(event as APIGatewayProxyEvent, {} as any);
+      const result = await handler(event as APIGatewayProxyEvent);
       const response = JSON.parse(result.body);
 
       expect(response.data.supporter_id).toBe('supp-123');
@@ -153,7 +161,7 @@ describe('Timeline API Handler', () => {
         pathParameters: { id: 'supp-123' },
       });
 
-      const result = await handler(event as APIGatewayProxyEvent, {} as any);
+      const result = await handler(event as APIGatewayProxyEvent);
       const response = JSON.parse(result.body);
 
       expect(response.data.events).toEqual([]);
@@ -175,7 +183,7 @@ describe('Timeline API Handler', () => {
         pathParameters: { id: 'supp-123' },
       });
 
-      await handler(event as APIGatewayProxyEvent, {} as any);
+      await handler(event as APIGatewayProxyEvent);
 
       expect(mockEventRepository.findBySupporterId).toHaveBeenCalledWith(
         'supp-123',
@@ -194,7 +202,7 @@ describe('Timeline API Handler', () => {
         pathParameters: { id: 'supp-123' },
       });
 
-      await handler(event as APIGatewayProxyEvent, {} as any);
+      await handler(event as APIGatewayProxyEvent);
 
       expect(mockEventRepository.findBySupporterId).toHaveBeenCalledWith(
         'supp-123',
@@ -213,7 +221,7 @@ describe('Timeline API Handler', () => {
         pathParameters: { id: 'supp-123' },
       });
 
-      await handler(event as APIGatewayProxyEvent, {} as any);
+      await handler(event as APIGatewayProxyEvent);
 
       expect(mockEventRepository.findBySupporterId).toHaveBeenCalledWith(
         'supp-123',
@@ -232,7 +240,7 @@ describe('Timeline API Handler', () => {
         pathParameters: { id: 'supp-123' },
       });
 
-      await handler(event as APIGatewayProxyEvent, {} as any);
+      await handler(event as APIGatewayProxyEvent);
 
       const types = mockEventRepository.findBySupporterId.mock.calls[0][1].event_types;
       expect(types).toEqual(['ShopOrder', 'PaymentEvent']);
@@ -247,7 +255,7 @@ describe('Timeline API Handler', () => {
         pathParameters: { id: 'supp-123' },
       });
 
-      await handler(event as APIGatewayProxyEvent, {} as any);
+      await handler(event as APIGatewayProxyEvent);
 
       const filters = mockEventRepository.findBySupporterId.mock.calls[0][1];
       expect(filters.event_types).toBeUndefined();
@@ -268,7 +276,7 @@ describe('Timeline API Handler', () => {
         pathParameters: { id: 'supp-123' },
       });
 
-      await handler(event as APIGatewayProxyEvent, {} as any);
+      await handler(event as APIGatewayProxyEvent);
 
       expect(mockEventRepository.findBySupporterId).toHaveBeenCalledWith(
         'supp-123',
@@ -288,7 +296,7 @@ describe('Timeline API Handler', () => {
         pathParameters: { id: 'supp-123' },
       });
 
-      await handler(event as APIGatewayProxyEvent, {} as any);
+      await handler(event as APIGatewayProxyEvent);
 
       expect(mockEventRepository.findBySupporterId).toHaveBeenCalledWith(
         'supp-123',
@@ -307,7 +315,7 @@ describe('Timeline API Handler', () => {
         pathParameters: { id: 'supp-123' },
       });
 
-      await handler(event as APIGatewayProxyEvent, {} as any);
+      await handler(event as APIGatewayProxyEvent);
 
       expect(mockEventRepository.findBySupporterId).toHaveBeenCalledWith(
         'supp-123',
@@ -327,7 +335,7 @@ describe('Timeline API Handler', () => {
         pathParameters: { id: 'supp-123' },
       });
 
-      await handler(event as APIGatewayProxyEvent, {} as any);
+      await handler(event as APIGatewayProxyEvent);
 
       expect(mockEventRepository.findBySupporterId).toHaveBeenCalledWith(
         'supp-123',
@@ -346,7 +354,7 @@ describe('Timeline API Handler', () => {
         pathParameters: { id: 'supp-123' },
       });
 
-      const result = await handler(event as APIGatewayProxyEvent, {} as any);
+      const result = await handler(event as APIGatewayProxyEvent);
       const response = JSON.parse(result.body);
 
       expect(response.data.has_more).toBe(true);
@@ -361,7 +369,7 @@ describe('Timeline API Handler', () => {
         pathParameters: { id: 'supp-123' },
       });
 
-      const result = await handler(event as APIGatewayProxyEvent, {} as any);
+      const result = await handler(event as APIGatewayProxyEvent);
       const response = JSON.parse(result.body);
 
       expect(response.data.has_more).toBe(false);
@@ -376,7 +384,7 @@ describe('Timeline API Handler', () => {
         pathParameters: { id: 'supp-123' },
       });
 
-      const result = await handler(event as APIGatewayProxyEvent, {} as any);
+      const result = await handler(event as APIGatewayProxyEvent);
       const response = JSON.parse(result.body);
 
       expect(response.data.limit).toBe(25);
@@ -399,7 +407,7 @@ describe('Timeline API Handler', () => {
         pathParameters: { id: 'supp-123' },
       });
 
-      await handler(event as APIGatewayProxyEvent, {} as any);
+      await handler(event as APIGatewayProxyEvent);
 
       expect(mockEventRepository.findBySupporterId).toHaveBeenCalledWith(
         'supp-123',
@@ -419,7 +427,7 @@ describe('Timeline API Handler', () => {
         pathParameters: { id: 'supp-123' },
       });
 
-      await handler(event as APIGatewayProxyEvent, {} as any);
+      await handler(event as APIGatewayProxyEvent);
 
       expect(mockEventRepository.findBySupporterId).toHaveBeenCalledWith(
         'supp-123',
@@ -441,7 +449,7 @@ describe('Timeline API Handler', () => {
         pathParameters: { id: 'supp-123' },
       });
 
-      await handler(event as APIGatewayProxyEvent, {} as any);
+      await handler(event as APIGatewayProxyEvent);
 
       expect(mockEventRepository.findBySupporterId).toHaveBeenCalledWith(
         'supp-123',
@@ -465,7 +473,7 @@ describe('Timeline API Handler', () => {
         pathParameters: { id: 'supp-123' },
       });
 
-      const result = await handler(event as APIGatewayProxyEvent, {} as any);
+      const result = await handler(event as APIGatewayProxyEvent);
       const response = JSON.parse(result.body);
 
       expect(response.data.filters.event_types).toEqual(['ShopOrder']);
@@ -481,7 +489,7 @@ describe('Timeline API Handler', () => {
         pathParameters: { id: 'supp-123' },
       });
 
-      const result = await handler(event as APIGatewayProxyEvent, {} as any);
+      const result = await handler(event as APIGatewayProxyEvent);
       const response = JSON.parse(result.body);
 
       expect(response.data.filters.event_types).toBeNull();
@@ -504,7 +512,7 @@ describe('Timeline API Handler', () => {
         pathParameters: { id: 'supp-123' },
       });
 
-      const result = await handler(event as APIGatewayProxyEvent, {} as any);
+      const result = await handler(event as APIGatewayProxyEvent);
       const response = JSON.parse(result.body);
 
       expect(response.data.events[0]).toEqual({
@@ -530,7 +538,7 @@ describe('Timeline API Handler', () => {
         pathParameters: { id: 'supp-123' },
       });
 
-      const result = await handler(event as APIGatewayProxyEvent, {} as any);
+      const result = await handler(event as APIGatewayProxyEvent);
       const response = JSON.parse(result.body);
 
       expect(response.data.events[0].event_time).toMatch(/^\d{4}-\d{2}-\d{2}T/);
@@ -544,7 +552,7 @@ describe('Timeline API Handler', () => {
         pathParameters: { id: 'supp-123' },
       });
 
-      const result = await handler(event as APIGatewayProxyEvent, {} as any);
+      const result = await handler(event as APIGatewayProxyEvent);
       const response = JSON.parse(result.body);
 
       expect(response.data.total).toBe(42);
@@ -558,7 +566,7 @@ describe('Timeline API Handler', () => {
         pathParameters: { id: 'supp-123' },
       });
 
-      const result = await handler(event as APIGatewayProxyEvent, {} as any);
+      const result = await handler(event as APIGatewayProxyEvent);
 
       expect(result.statusCode).toBe(200);
       const response = JSON.parse(result.body);
@@ -578,7 +586,7 @@ describe('Timeline API Handler', () => {
         pathParameters: { id: 'supp-123' },
       });
 
-      const result = await handler(event as APIGatewayProxyEvent, {} as any);
+      const result = await handler(event as APIGatewayProxyEvent);
       const response = JSON.parse(result.body);
 
       expect(result.statusCode).toBe(500);
@@ -597,7 +605,7 @@ describe('Timeline API Handler', () => {
         pathParameters: { id: 'supp-123' },
       });
 
-      const result = await handler(event as APIGatewayProxyEvent, {} as any);
+      const result = await handler(event as APIGatewayProxyEvent);
       const response = JSON.parse(result.body);
 
       expect(result.statusCode).toBe(404);
@@ -612,7 +620,7 @@ describe('Timeline API Handler', () => {
         pathParameters: { id: 'supp-123' },
       });
 
-      await handler(event as APIGatewayProxyEvent, {} as any);
+      await handler(event as APIGatewayProxyEvent);
 
       expect(consoleErrorSpy).toHaveBeenCalled();
 
@@ -634,7 +642,7 @@ describe('Timeline API Handler', () => {
         pathParameters: { id: 'supp-123' },
       });
 
-      const result = await handler(event as APIGatewayProxyEvent, {} as any);
+      const result = await handler(event as APIGatewayProxyEvent);
 
       expect(result.statusCode).toBe(200);
       // Default limit is used when 0 is provided (via Math.max with DEFAULT_LIMIT)
@@ -649,7 +657,7 @@ describe('Timeline API Handler', () => {
         pathParameters: { id: 'supp-123' },
       });
 
-      const result = await handler(event as APIGatewayProxyEvent, {} as any);
+      const result = await handler(event as APIGatewayProxyEvent);
 
       expect(result.statusCode).toBe(200);
     });
@@ -663,7 +671,7 @@ describe('Timeline API Handler', () => {
         pathParameters: { id: 'supp-123' },
       });
 
-      const result = await handler(event as APIGatewayProxyEvent, {} as any);
+      const result = await handler(event as APIGatewayProxyEvent);
 
       // Should still parse as a date (even if invalid)
       expect(result.statusCode).toBe(200);
@@ -677,7 +685,7 @@ describe('Timeline API Handler', () => {
         pathParameters: { id: 'supp-123/with-slashes' },
       });
 
-      const result = await handler(event as APIGatewayProxyEvent, {} as any);
+      const result = await handler(event as APIGatewayProxyEvent);
 
       expect(result.statusCode).toBe(200);
     });
@@ -691,7 +699,7 @@ describe('Timeline API Handler', () => {
         pathParameters: { id: 'supp-123' },
       });
 
-      await handler(event as APIGatewayProxyEvent, {} as any);
+      await handler(event as APIGatewayProxyEvent);
 
       const types = mockEventRepository.findBySupporterId.mock.calls[0][1].event_types;
       expect(types).toEqual(['ShopOrder', 'TicketPurchase', 'StadiumEntry']);

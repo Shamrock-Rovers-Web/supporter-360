@@ -10,32 +10,33 @@
  * @packageDocumentation
  */
 
+// @ts-nocheck
+
+// Create mock repository that will be used by the handler
+const mockRepository = {
+  search: jest.fn(),
+} as any;
+
+// Mock auth middleware to bypass authentication
+jest.mock('../../middleware/auth', () => ({
+  requireAuth: jest.fn((fn) => async (event: any) => {
+    return fn(event, { role: 'staff', keyName: 'test-key' });
+  }),
+  validateApiKey: jest.fn(),
+  AuthContext: {},
+}));
+
+// Mock the repository before importing the handler
+jest.mock('../../db/repositories/supporter.repository', () => ({
+  SupporterRepository: jest.fn().mockImplementation(() => mockRepository),
+}));
+
 import { handler } from './search.handler';
 import { APIGatewayProxyEvent } from 'aws-lambda';
-import { SupporterRepository } from '../../db/repositories/supporter.repository';
-
-// Mock the repository
-jest.mock('../../db/repositories/supporter.repository');
-jest.mock('../../middleware/auth');
 
 describe('Search API Handler', () => {
-  let mockRepository: jest.Mocked<SupporterRepository>;
-  let mockRequireAuth: jest.Mock;
-
   beforeEach(() => {
     jest.clearAllMocks();
-    mockRepository = {
-      search: jest.fn(),
-    } as any;
-    (require('../../db/repositories/supporter.repository') as any).SupporterRepository = function () {
-      return mockRepository;
-    };
-
-    // Mock auth middleware
-    mockRequireAuth = jest.fn().mockImplementation((fn) => async (event: any) => {
-      return fn(event, { role: 'staff', keyName: 'test-key' });
-    });
-    (require('../../middleware/auth') as any).requireAuth = mockRequireAuth;
   });
 
   // ==========================================================================
@@ -60,7 +61,7 @@ describe('Search API Handler', () => {
         queryStringParameters: {},
       });
 
-      const result = await handler(event as APIGatewayProxyEvent, {} as any);
+      const result = await handler(event as APIGatewayProxyEvent);
       const response = JSON.parse(result.body);
 
       expect(result.statusCode).toBe(400);
@@ -73,7 +74,7 @@ describe('Search API Handler', () => {
         queryStringParameters: { q: '   ' }, // Whitespace only
       });
 
-      const result = await handler(event as APIGatewayProxyEvent, {} as any);
+      const result = await handler(event as APIGatewayProxyEvent);
       const response = JSON.parse(result.body);
 
       expect(result.statusCode).toBe(400);
@@ -84,7 +85,7 @@ describe('Search API Handler', () => {
         queryStringParameters: { q: 'john', field: 'invalid' },
       });
 
-      const result = await handler(event as APIGatewayProxyEvent, {} as any);
+      const result = await handler(event as APIGatewayProxyEvent);
       const response = JSON.parse(result.body);
 
       expect(result.statusCode).toBe(400);
@@ -95,7 +96,7 @@ describe('Search API Handler', () => {
         queryStringParameters: { q: 'john', limit: 'invalid' },
       });
 
-      const result = await handler(event as APIGatewayProxyEvent, {} as any);
+      const result = await handler(event as APIGatewayProxyEvent);
       const response = JSON.parse(result.body);
 
       expect(result.statusCode).toBe(400);
@@ -106,7 +107,7 @@ describe('Search API Handler', () => {
         queryStringParameters: { q: 'john', limit: '101' },
       });
 
-      const result = await handler(event as APIGatewayProxyEvent, {} as any);
+      const result = await handler(event as APIGatewayProxyEvent);
       const response = JSON.parse(result.body);
 
       expect(result.statusCode).toBe(400);
@@ -117,7 +118,7 @@ describe('Search API Handler', () => {
         queryStringParameters: { q: 'john', offset: '-1' },
       });
 
-      const result = await handler(event as APIGatewayProxyEvent, {} as any);
+      const result = await handler(event as APIGatewayProxyEvent);
       const response = JSON.parse(result.body);
 
       expect(result.statusCode).toBe(400);
@@ -128,7 +129,7 @@ describe('Search API Handler', () => {
         queryStringParameters: { q: 'john', type: 'InvalidType' },
       });
 
-      const result = await handler(event as APIGatewayProxyEvent, {} as any);
+      const result = await handler(event as APIGatewayProxyEvent);
       const response = JSON.parse(result.body);
 
       expect(result.statusCode).toBe(400);
@@ -161,7 +162,7 @@ describe('Search API Handler', () => {
         queryStringParameters: { q: 'john@example.com', field: 'email' },
       });
 
-      const result = await handler(event as APIGatewayProxyEvent, {} as any);
+      const result = await handler(event as APIGatewayProxyEvent);
       const response = JSON.parse(result.body);
 
       expect(mockRepository.search).toHaveBeenCalledWith({
@@ -197,7 +198,7 @@ describe('Search API Handler', () => {
         queryStringParameters: { q: 'Johnson', field: 'name' },
       });
 
-      const result = await handler(event as APIGatewayProxyEvent, {} as any);
+      const result = await handler(event as APIGatewayProxyEvent);
 
       expect(mockRepository.search).toHaveBeenCalledWith({
         query: 'Johnson',
@@ -218,7 +219,7 @@ describe('Search API Handler', () => {
         queryStringParameters: { q: '0871234567', field: 'phone' },
       });
 
-      await handler(event as APIGatewayProxyEvent, {} as any);
+      await handler(event as APIGatewayProxyEvent);
 
       expect(mockRepository.search).toHaveBeenCalledWith({
         query: '0871234567',
@@ -239,7 +240,7 @@ describe('Search API Handler', () => {
         queryStringParameters: { q: 'john', field: 'all' },
       });
 
-      await handler(event as APIGatewayProxyEvent, {} as any);
+      await handler(event as APIGatewayProxyEvent);
 
       expect(mockRepository.search).toHaveBeenCalledWith({
         query: 'john',
@@ -260,7 +261,7 @@ describe('Search API Handler', () => {
         queryStringParameters: { q: 'john' },
       });
 
-      await handler(event as APIGatewayProxyEvent, {} as any);
+      await handler(event as APIGatewayProxyEvent);
 
       expect(mockRepository.search).toHaveBeenCalledWith({
         query: 'john',
@@ -287,7 +288,7 @@ describe('Search API Handler', () => {
         queryStringParameters: { q: 'john', type: 'Member' },
       });
 
-      await handler(event as APIGatewayProxyEvent, {} as any);
+      await handler(event as APIGatewayProxyEvent);
 
       expect(mockRepository.search).toHaveBeenCalledWith({
         query: 'john',
@@ -308,7 +309,7 @@ describe('Search API Handler', () => {
         queryStringParameters: { q: 'john', types: 'Member' },
       });
 
-      await handler(event as APIGatewayProxyEvent, {} as any);
+      await handler(event as APIGatewayProxyEvent);
 
       expect(mockRepository.search).toHaveBeenCalledWith({
         query: 'john',
@@ -329,7 +330,7 @@ describe('Search API Handler', () => {
         queryStringParameters: { q: 'john', types: 'Member,Season Ticket Holder' },
       });
 
-      await handler(event as APIGatewayProxyEvent, {} as any);
+      await handler(event as APIGatewayProxyEvent);
 
       expect(mockRepository.search).toHaveBeenCalledWith({
         query: 'john',
@@ -350,7 +351,7 @@ describe('Search API Handler', () => {
         queryStringParameters: { q: 'john', types: 'Member,InvalidType,Ticket Buyer' },
       });
 
-      await handler(event as APIGatewayProxyEvent, {} as any);
+      await handler(event as APIGatewayProxyEvent);
 
       const types = mockRepository.search.mock.calls[0][0].supporter_type;
       expect(types).toEqual(['Member', 'Ticket Buyer']);
@@ -366,7 +367,7 @@ describe('Search API Handler', () => {
         queryStringParameters: { q: 'john', types: 'InvalidType,AnotherInvalid' },
       });
 
-      await handler(event as APIGatewayProxyEvent, {} as any);
+      await handler(event as APIGatewayProxyEvent);
 
       const searchCall = mockRepository.search.mock.calls[0];
       expect(searchCall[0].supporter_type).toBeUndefined();
@@ -388,7 +389,7 @@ describe('Search API Handler', () => {
         queryStringParameters: { q: 'john', limit: '20', offset: '40' },
       });
 
-      await handler(event as APIGatewayProxyEvent, {} as any);
+      await handler(event as APIGatewayProxyEvent);
 
       expect(mockRepository.search).toHaveBeenCalledWith({
         query: 'john',
@@ -409,7 +410,7 @@ describe('Search API Handler', () => {
         queryStringParameters: { q: 'john', limit: '20', offset: '80' },
       });
 
-      const result = await handler(event as APIGatewayProxyEvent, {} as any);
+      const result = await handler(event as APIGatewayProxyEvent);
       const response = JSON.parse(result.body);
 
       expect(response.data.has_more).toBe(true);
@@ -425,7 +426,7 @@ describe('Search API Handler', () => {
         queryStringParameters: { q: 'john', limit: '20', offset: '80' },
       });
 
-      const result = await handler(event as APIGatewayProxyEvent, {} as any);
+      const result = await handler(event as APIGatewayProxyEvent);
       const response = JSON.parse(result.body);
 
       expect(response.data.has_more).toBe(false);
@@ -441,7 +442,7 @@ describe('Search API Handler', () => {
         queryStringParameters: { q: 'john' },
       });
 
-      await handler(event as APIGatewayProxyEvent, {} as any);
+      await handler(event as APIGatewayProxyEvent);
 
       expect(mockRepository.search).toHaveBeenCalledWith({
         query: 'john',
@@ -462,7 +463,7 @@ describe('Search API Handler', () => {
         queryStringParameters: { q: 'john' },
       });
 
-      await handler(event as APIGatewayProxyEvent, {} as any);
+      await handler(event as APIGatewayProxyEvent);
 
       expect(mockRepository.search).toHaveBeenCalledWith({
         query: 'john',
@@ -500,7 +501,7 @@ describe('Search API Handler', () => {
         queryStringParameters: { q: 'john' },
       });
 
-      const result = await handler(event as APIGatewayProxyEvent, {} as any);
+      const result = await handler(event as APIGatewayProxyEvent);
       const response = JSON.parse(result.body);
 
       expect(response.data.results[0].supporter_id).toBe('supp-123');
@@ -530,7 +531,7 @@ describe('Search API Handler', () => {
         queryStringParameters: { q: 'john' },
       });
 
-      const result = await handler(event as APIGatewayProxyEvent, {} as any);
+      const result = await handler(event as APIGatewayProxyEvent);
       const response = JSON.parse(result.body);
 
       expect(response.data.results[0].last_ticket_order).toBeNull();
@@ -547,7 +548,7 @@ describe('Search API Handler', () => {
         queryStringParameters: { q: 'john' },
       });
 
-      const result = await handler(event as APIGatewayProxyEvent, {} as any);
+      const result = await handler(event as APIGatewayProxyEvent);
       const response = JSON.parse(result.body);
 
       expect(response.data.total).toBe(42);
@@ -563,7 +564,7 @@ describe('Search API Handler', () => {
         queryStringParameters: { q: 'john', limit: '10', offset: '5' },
       });
 
-      const result = await handler(event as APIGatewayProxyEvent, {} as any);
+      const result = await handler(event as APIGatewayProxyEvent);
       const response = JSON.parse(result.body);
 
       expect(response.data.limit).toBe(10);
@@ -580,7 +581,7 @@ describe('Search API Handler', () => {
         queryStringParameters: { q: 'john' },
       });
 
-      const result = await handler(event as APIGatewayProxyEvent, {} as any);
+      const result = await handler(event as APIGatewayProxyEvent);
 
       expect(result.statusCode).toBe(200);
       const response = JSON.parse(result.body);
@@ -600,7 +601,7 @@ describe('Search API Handler', () => {
         queryStringParameters: { q: 'john' },
       });
 
-      const result = await handler(event as APIGatewayProxyEvent, {} as any);
+      const result = await handler(event as APIGatewayProxyEvent);
       const response = JSON.parse(result.body);
 
       expect(result.statusCode).toBe(500);
@@ -628,7 +629,7 @@ describe('Search API Handler', () => {
         queryStringParameters: { q: 'john' },
       });
 
-      await handler(event as APIGatewayProxyEvent, {} as any);
+      await handler(event as APIGatewayProxyEvent);
 
       expect(console.warn).toHaveBeenCalledWith(
         expect.stringContaining('Slow search query:')
@@ -654,7 +655,7 @@ describe('Search API Handler', () => {
         queryStringParameters: { q: "O'Brien Jr." },
       });
 
-      const result = await handler(event as APIGatewayProxyEvent, {} as any);
+      const result = await handler(event as APIGatewayProxyEvent);
 
       expect(result.statusCode).toBe(200);
     });
@@ -669,7 +670,7 @@ describe('Search API Handler', () => {
         queryStringParameters: { q: 'nonexistent' },
       });
 
-      const result = await handler(event as APIGatewayProxyEvent, {} as any);
+      const result = await handler(event as APIGatewayProxyEvent);
       const response = JSON.parse(result.body);
 
       expect(response.data.results).toEqual([]);
@@ -686,7 +687,7 @@ describe('Search API Handler', () => {
         queryStringParameters: { q: 'john', offset: '0' },
       });
 
-      const result = await handler(event as APIGatewayProxyEvent, {} as any);
+      const result = await handler(event as APIGatewayProxyEvent);
 
       expect(result.statusCode).toBe(200);
     });
@@ -701,7 +702,7 @@ describe('Search API Handler', () => {
         queryStringParameters: { q: 'john', limit: '100' },
       });
 
-      const result = await handler(event as APIGatewayProxyEvent, {} as any);
+      const result = await handler(event as APIGatewayProxyEvent);
 
       expect(result.statusCode).toBe(200);
     });

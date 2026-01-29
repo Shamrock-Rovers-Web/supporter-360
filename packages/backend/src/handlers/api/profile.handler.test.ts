@@ -9,32 +9,39 @@
  * @packageDocumentation
  */
 
+// @ts-nocheck
+
+// Create mock repository that will be used by the handler
+const mockRepository = {
+  getProfile: jest.fn(),
+} as any;
+
+// Mock auth middleware to bypass authentication
+jest.mock('../../middleware/auth', () => ({
+  requireAuth: jest.fn((fn) => async (event: any) => {
+    return fn(event, { role: 'staff', keyName: 'test-key' });
+  }),
+  validateApiKey: jest.fn(),
+  AuthContext: {},
+}));
+
+// Mock the repository before importing the handler
+jest.mock('../../db/repositories/supporter.repository', () => ({
+  SupporterRepository: jest.fn().mockImplementation(() => mockRepository),
+  SupporterNotFoundError: class extends Error {
+    constructor(message: string) {
+      super(message);
+      this.name = 'SupporterNotFoundError';
+    }
+  },
+}));
+
 import { handler } from './profile.handler';
 import { APIGatewayProxyEvent } from 'aws-lambda';
-import { SupporterRepository, SupporterNotFoundError } from '../../db/repositories/supporter.repository';
-
-// Mock the repository
-jest.mock('../../db/repositories/supporter.repository');
-jest.mock('../../middleware/auth');
 
 describe('Profile API Handler', () => {
-  let mockRepository: jest.Mocked<SupporterRepository>;
-  let mockRequireAuth: jest.Mock;
-
   beforeEach(() => {
     jest.clearAllMocks();
-    mockRepository = {
-      getProfile: jest.fn(),
-    } as any;
-    (require('../../db/repositories/supporter.repository') as any).SupporterRepository = function () {
-      return mockRepository;
-    };
-
-    // Mock auth middleware
-    mockRequireAuth = jest.fn().mockImplementation((fn) => async (event: any) => {
-      return fn(event, { role: 'staff', keyName: 'test-key' });
-    });
-    (require('../../middleware/auth') as any).requireAuth = mockRequireAuth;
   });
 
   // ==========================================================================
@@ -62,7 +69,7 @@ describe('Profile API Handler', () => {
       stripe: 'pi-123',
     },
     emails: [
-      { id: 1, email: 'alias@example.com', is_shared: false, created_at: new Date() },
+      { id: 1, email: 'alias@example.com', is_shared: false, supporter_id: 'supp-123', created_at: new Date(), updated_at: new Date() },
     ],
     overview: {
       last_ticket_order: {
@@ -140,7 +147,7 @@ describe('Profile API Handler', () => {
         pathParameters: {},
       });
 
-      const result = await handler(event as APIGatewayProxyEvent, {} as any);
+      const result = await handler(event as APIGatewayProxyEvent);
       const response = JSON.parse(result.body);
 
       expect(result.statusCode).toBe(400);
@@ -153,7 +160,7 @@ describe('Profile API Handler', () => {
         pathParameters: { id: '' },
       });
 
-      const result = await handler(event as APIGatewayProxyEvent, {} as any);
+      const result = await handler(event as APIGatewayProxyEvent);
       const response = JSON.parse(result.body);
 
       expect(result.statusCode).toBe(400);
@@ -174,7 +181,7 @@ describe('Profile API Handler', () => {
         pathParameters: { id: 'supp-123' },
       });
 
-      const result = await handler(event as APIGatewayProxyEvent, {} as any);
+      const result = await handler(event as APIGatewayProxyEvent);
       const response = JSON.parse(result.body);
 
       expect(result.statusCode).toBe(200);
@@ -194,7 +201,7 @@ describe('Profile API Handler', () => {
         pathParameters: { id: 'nonexistent' },
       });
 
-      const result = await handler(event as APIGatewayProxyEvent, {} as any);
+      const result = await handler(event as APIGatewayProxyEvent);
       const response = JSON.parse(result.body);
 
       expect(result.statusCode).toBe(404);
@@ -212,7 +219,7 @@ describe('Profile API Handler', () => {
         pathParameters: { id: 'supp-123' },
       });
 
-      const result = await handler(event as APIGatewayProxyEvent, {} as any);
+      const result = await handler(event as APIGatewayProxyEvent);
       const response = JSON.parse(result.body);
 
       expect(result.statusCode).toBe(404);
@@ -233,7 +240,7 @@ describe('Profile API Handler', () => {
         pathParameters: { id: 'supp-123' },
       });
 
-      const result = await handler(event as APIGatewayProxyEvent, {} as any);
+      const result = await handler(event as APIGatewayProxyEvent);
       const response = JSON.parse(result.body);
 
       expect(response.data.emails).toEqual([
@@ -250,7 +257,7 @@ describe('Profile API Handler', () => {
         pathParameters: { id: 'supp-123' },
       });
 
-      const result = await handler(event as APIGatewayProxyEvent, {} as any);
+      const result = await handler(event as APIGatewayProxyEvent);
       const response = JSON.parse(result.body);
 
       expect(response.data.emails).toEqual([]);
@@ -270,7 +277,7 @@ describe('Profile API Handler', () => {
         pathParameters: { id: 'supp-123' },
       });
 
-      const result = await handler(event as APIGatewayProxyEvent, {} as any);
+      const result = await handler(event as APIGatewayProxyEvent);
       const response = JSON.parse(result.body);
 
       expect(response.data.overview.last_ticket_order).toEqual({
@@ -293,7 +300,7 @@ describe('Profile API Handler', () => {
         pathParameters: { id: 'supp-123' },
       });
 
-      const result = await handler(event as APIGatewayProxyEvent, {} as any);
+      const result = await handler(event as APIGatewayProxyEvent);
       const response = JSON.parse(result.body);
 
       expect(response.data.overview.last_shop_order).toEqual({
@@ -314,7 +321,7 @@ describe('Profile API Handler', () => {
         pathParameters: { id: 'supp-123' },
       });
 
-      const result = await handler(event as APIGatewayProxyEvent, {} as any);
+      const result = await handler(event as APIGatewayProxyEvent);
       const response = JSON.parse(result.body);
 
       expect(response.data.overview.membership).toEqual({
@@ -337,7 +344,7 @@ describe('Profile API Handler', () => {
         pathParameters: { id: 'supp-123' },
       });
 
-      const result = await handler(event as APIGatewayProxyEvent, {} as any);
+      const result = await handler(event as APIGatewayProxyEvent);
       const response = JSON.parse(result.body);
 
       expect(response.data.overview.membership).toBeNull();
@@ -351,7 +358,7 @@ describe('Profile API Handler', () => {
         pathParameters: { id: 'supp-123' },
       });
 
-      const result = await handler(event as APIGatewayProxyEvent, {} as any);
+      const result = await handler(event as APIGatewayProxyEvent);
       const response = JSON.parse(result.body);
 
       expect(response.data.overview.last_stadium_entry).toEqual({
@@ -370,7 +377,7 @@ describe('Profile API Handler', () => {
         pathParameters: { id: 'supp-123' },
       });
 
-      const result = await handler(event as APIGatewayProxyEvent, {} as any);
+      const result = await handler(event as APIGatewayProxyEvent);
       const response = JSON.parse(result.body);
 
       expect(response.data.overview.mailchimp).toEqual([
@@ -395,7 +402,7 @@ describe('Profile API Handler', () => {
         pathParameters: { id: 'supp-123' },
       });
 
-      const result = await handler(event as APIGatewayProxyEvent, {} as any);
+      const result = await handler(event as APIGatewayProxyEvent);
       const response = JSON.parse(result.body);
 
       expect(response.data.overview.last_ticket_order).toBeNull();
@@ -417,7 +424,7 @@ describe('Profile API Handler', () => {
         pathParameters: { id: 'supp-123' },
       });
 
-      const result = await handler(event as APIGatewayProxyEvent, {} as any);
+      const result = await handler(event as APIGatewayProxyEvent);
       const response = JSON.parse(result.body);
 
       expect(response.data.linked_ids).toEqual({
@@ -435,7 +442,7 @@ describe('Profile API Handler', () => {
         pathParameters: { id: 'supp-123' },
       });
 
-      const result = await handler(event as APIGatewayProxyEvent, {} as any);
+      const result = await handler(event as APIGatewayProxyEvent);
       const response = JSON.parse(result.body);
 
       expect(response.data.flags).toEqual({
@@ -454,7 +461,7 @@ describe('Profile API Handler', () => {
         pathParameters: { id: 'supp-123' },
       });
 
-      const result = await handler(event as APIGatewayProxyEvent, {} as any);
+      const result = await handler(event as APIGatewayProxyEvent);
       const response = JSON.parse(result.body);
 
       expect(response.data.linked_ids).toEqual({});
@@ -475,7 +482,7 @@ describe('Profile API Handler', () => {
         pathParameters: { id: 'supp-123' },
       });
 
-      const result = await handler(event as APIGatewayProxyEvent, {} as any);
+      const result = await handler(event as APIGatewayProxyEvent);
       const response = JSON.parse(result.body);
 
       expect(response.data.created_at).toBeDefined();
@@ -489,7 +496,7 @@ describe('Profile API Handler', () => {
         pathParameters: { id: 'supp-123' },
       });
 
-      const result = await handler(event as APIGatewayProxyEvent, {} as any);
+      const result = await handler(event as APIGatewayProxyEvent);
 
       expect(result.statusCode).toBe(200);
     });
@@ -507,7 +514,7 @@ describe('Profile API Handler', () => {
         pathParameters: { id: 'supp-123' },
       });
 
-      const result = await handler(event as APIGatewayProxyEvent, {} as any);
+      const result = await handler(event as APIGatewayProxyEvent);
       const response = JSON.parse(result.body);
 
       expect(result.statusCode).toBe(500);
@@ -524,7 +531,7 @@ describe('Profile API Handler', () => {
         pathParameters: { id: 'supp-123' },
       });
 
-      await handler(event as APIGatewayProxyEvent, {} as any);
+      await handler(event as APIGatewayProxyEvent);
 
       expect(consoleErrorSpy).toHaveBeenCalled();
 
@@ -548,7 +555,7 @@ describe('Profile API Handler', () => {
         pathParameters: { id: 'supp-123' },
       });
 
-      const result = await handler(event as APIGatewayProxyEvent, {} as any);
+      const result = await handler(event as APIGatewayProxyEvent);
       const response = JSON.parse(result.body);
 
       expect(response.data.name).toBeNull();
@@ -563,7 +570,7 @@ describe('Profile API Handler', () => {
         pathParameters: { id: 'supp-123-with-special-chars' },
       });
 
-      const result = await handler(event as APIGatewayProxyEvent, {} as any);
+      const result = await handler(event as APIGatewayProxyEvent);
 
       expect(result.statusCode).toBe(200);
     });
@@ -576,7 +583,7 @@ describe('Profile API Handler', () => {
         pathParameters: { id: uuidId },
       });
 
-      const result = await handler(event as APIGatewayProxyEvent, {} as any);
+      const result = await handler(event as APIGatewayProxyEvent);
 
       expect(result.statusCode).toBe(200);
     });
