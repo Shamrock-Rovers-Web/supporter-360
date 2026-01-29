@@ -1,39 +1,56 @@
 # Supporter 360 - Current Status Notes
 
-## Date: 2026-01-28 - Deployed to Production! 🚀
+## Date: 2026-01-29 - E2E Tests Added, Webhook Signature Issue Identified 🔍
 
-### Deployment Complete
-- **All 18 Lambda functions** updated with bundled code
-- **CORS headers** added to all API responses
-- **Frontend** deployed and accessible at https://d2aoqa35scit03.cloudfront.net
-- **API Gateway** live at https://2u9a7una05.execute-api.eu-west-1.amazonaws.com/prod/
+### Today's Accomplishments
+1. **Cleaned up repository** - Removed 8 redundant files (10K+ lines)
+2. **Added comprehensive E2E tests** - Playwright test suite with 5 tests
+3. **Improved .gitignore** - Better exclusions for generated files
+4. **Identified critical webhook issue** - Signature verification failing
+
+### E2E Test Results (gleesonb@gmail.com)
+```
+✅ 5/5 tests passed
+✅ Search API: Found Bill Gleeson (supporter_id: 4e335e47-ba5e-4d14-bb27-7a532d928ad0)
+✅ Profile API: Future Ticketing data present (account ID: 324)
+⚠️ Timeline API: Empty (FT only imported accounts, not events yet)
+✅ Frontend: Loads at https://d2aoqa35scit03.cloudfront.net
+📊 Integrations: 1/5 working (Future Ticketing only)
+```
+
+### ⚠️ CRITICAL ISSUE: Webhook Signature Verification
+All webhooks are **configured and receiving requests**, but **failing signature verification**:
+
+```
+WARN Shopify webhook missing signature
+WARN Stripe webhook missing signature
+WARN GoCardless webhook missing signature
+```
+
+**Root Cause:** During security remediation (2026-01-29), webhook secrets were set to `"PLACEHOLDER"` because only API keys were provided, not webhook signing secrets.
+
+**Required Actions:**
+1. **Shopify**: Get webhook signing secret from Shopify Partners → App → Webhooks
+2. **Stripe**: Get webhook signing secret (`whsec_...`) from Stripe Dashboard → Developers → Webhooks
+3. **GoCardless**: Get webhook signing secret from GoCardless Dashboard → Developers → Webhooks
+4. **Mailchimp**: Get webhook signing secret from Mailchimp Audience → Settings → Webhooks
+
+**Update Secrets Manager:**
+```bash
+./scripts/update-secret.sh supporter360/stripe '{"secretKey":"sk_live_...","webhookSecret":"ACTUAL_WHSEC_..."}'
+./scripts/update-secret.sh supporter360/shopify '{"clientSecret":"shpss_...","webhookSecret":"ACTUAL_SECRET"}'
+./scripts/update-secret.sh supporter360/gocardless '{"accessToken":"live_...","webhookSecret":"ACTUAL_SECRET"}'
+./scripts/update-secret.sh supporter360/mailchimp '{"apiKey":"...-us11","webhookSecret":"ACTUAL_SECRET"}'
+```
 
 ### Integration Configuration Status
-| Integration | Code | Webhook URL | Status |
-|-------------|------|-------------|--------|
-| **Stripe** | ✅ Complete | `/webhooks/stripe` | Ready to configure |
-| **GoCardless** | ✅ Complete | `/webhooks/gocardless` | Ready to configure |
-| **Mailchimp** | ✅ Complete | `/webhooks/mailchimp` | Ready to configure |
-| **Shopify** | ✅ Complete | EventBridge | Already configured |
-| **Future Ticketing** | ✅ Working | Polling every 5min | ✅ Live |
-
-### Fixes Applied
-1. **CORS Issue**: Added `Access-Control-Allow-Origin: *` headers to all API responses
-2. **Build System**: Fixed esbuild platform mismatch (reinstalled for Linux)
-3. **CDK Config**: Updated to use `cdk.out/bin/app.js` compiled path
-4. **Database Package**: Fixed "echoNo" typo in build script
-5. **Jest Setup**: Added `export {}` for module declaration
-6. **Icon Sizing**: Constrained emoji sizes in Timeline component
-
-### Known Issues
-- **Mailchimp Webhook**: Returns 403 when adding - need to debug webhook validation
-- **Unit Tests**: Outdated (handler signature changed from 2 args to 1 arg) - non-blocking
-
-### Pending for Tomorrow
-- Debug Mailchimp webhook 403 error
-- Configure Stripe, GoCardless, Mailchimp webhooks in external dashboards
-- Verify GoCardless secret padding (40 chars minimum with zeros)
-- Update unit tests to match new handler signature
+| Integration | Webhook Configured | Webhook Receiving | Signature Status | Processing Status |
+|-------------|-------------------|-------------------|------------------|-------------------|
+| **Future Ticketing** | N/A (polling) | ✅ Working | N/A | ✅ Processing accounts |
+| **Shopify** | ✅ Yes | ✅ Yes (logs show) | ❌ PLACEHOLDER | ❌ Rejecting all |
+| **Stripe** | ✅ Yes | ✅ Yes (logs show) | ❌ PLACEHOLDER | ❌ Rejecting all |
+| **GoCardless** | ✅ Yes | ✅ Yes (logs show) | ❌ PLACEHOLDER | ❌ Rejecting all |
+| **Mailchimp** | ✅ Yes | ⚠️ Unknown | ❌ PLACEHOLDER | ❌ Rejecting all |
 
 ### Deployed Infrastructure
 ```
