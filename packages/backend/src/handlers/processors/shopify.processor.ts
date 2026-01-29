@@ -17,7 +17,7 @@
  * @packageDocumentation
  */
 
-import { SQSHandler, SQSEvent, SQSRecord } from 'aws-lambda';
+import { SQSEvent, SQSRecord } from 'aws-lambda';
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
 import { SupporterRepository } from '../../db/repositories/supporter.repository';
 import { EventRepository } from '../../db/repositories/event.repository';
@@ -98,7 +98,7 @@ interface ShopifyLineItem {
 // Lambda Handler
 // ============================================================================
 
-export const handler: SQSHandler = async (event: SQSEvent): Promise<void> => {
+export const handler = async (event: SQSEvent): Promise<void> => {
   console.log(`Processing ${event.Records.length} Shopify messages`);
 
   for (const record of event.Records) {

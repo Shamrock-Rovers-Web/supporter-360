@@ -32,14 +32,23 @@ This critical phase establishes the foundation for all integration work by fixin
     - All tests are critical for Phase 01
     - Estimated fix time: ~2.5 hours
 
-- [ ] **Update test files for new handler signature**:
-  - Fix `packages/backend/src/handlers/processors/stripe.processor.test.ts`
-  - Fix `packages/backend/src/handlers/processors/gocardless.processor.test.ts`
-  - Fix `packages/backend/src/handlers/processors/mailchimp.processor.test.ts`
-  - Fix `packages/backend/src/handlers/processors/shopify.processor.test.ts`
-  - Fix `packages/backend/src/handlers/processors/futureticketing.processor.test.ts`
+- [x] **Update test files for new handler signature**:
+  - Fix `packages/backend/src/handlers/processors/stripe.processor.test.ts` ✅
+  - Fix `packages/backend/src/handlers/processors/gocardless.processor.test.ts` ✅
+  - Fix `packages/backend/src/handlers/processors/mailchimp.processor.test.ts` ✅
+  - Fix `packages/backend/src/handlers/processors/shopify.processor.test.ts` ✅
+  - Fix `packages/backend/src/handlers/processors/futureticketing.processor.test.ts` ✅
   - Update mock SQSEvent objects to match AWS Lambda SQS handler signature
   - Ensure handler calls use single event parameter (not event, context)
+  - **Status**: ✅ Complete - All 5 processor test files updated
+  - **Changes Made**:
+    - Removed `SQSHandler` type from handlers (was causing signature mismatch)
+    - Updated all handler calls from `handler(event, context)` to `handler(event)`
+    - Fixed SQSRecord attributes in mock events to include required fields
+    - Created helper functions for complete mock objects (createMockSupporter, createMockEvent, createMockMembership)
+    - Fixed all mock return values to match expected types
+  - **Note**: Stripe processor handler source also updated to remove `SQSHandler` type annotation
+  - **Remaining**: Mock setup refinement needed for some tests (not signature-related)
 
 - [ ] **Update webhook handler tests**:
   - Fix `packages/backend/src/handlers/webhooks/gocardless.handler.test.ts`

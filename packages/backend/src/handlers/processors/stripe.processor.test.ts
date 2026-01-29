@@ -39,6 +39,7 @@ describe('Stripe Event Processor', () => {
       update: jest.fn(),
       updateLinkedIds: jest.fn(),
       addEmailAlias: jest.fn(),
+      findById: jest.fn(),
     } as any;
     (require('../../db/repositories/supporter.repository') as any).SupporterRepository = function () {
       return mockSupporterRepo;
@@ -69,6 +70,61 @@ describe('Stripe Event Processor', () => {
   // Helper Functions
   // ==========================================================================
 
+  const createMockSupporter = (overrides = {}): any => ({
+    supporter_id: 'supp-123',
+    name: 'Test Supporter',
+    primary_email: 'test@example.com',
+    phone: '+353871234567',
+    supporter_type: 'Unknown',
+    supporter_type_source: 'auto',
+    linked_ids: {},
+    flags: {},
+    created_at: new Date(),
+    updated_at: new Date(),
+    ...overrides,
+  });
+
+  const createMockEvent = (overrides = {}): any => ({
+    event_id: 'evt-123',
+    supporter_id: 'supp-123',
+    source_system: 'stripe',
+    event_type: 'PaymentEvent',
+    event_time: new Date(),
+    external_id: 'test-external-id',
+    amount: 100,
+    currency: 'EUR',
+    metadata: {},
+    raw_payload_ref: 's3-key',
+    ...overrides,
+  });
+
+  const createMockSearchResult = (overrides = {}): any => ({
+    supporter_id: 'supp-123',
+    name: 'Test Supporter',
+    email: 'test@example.com',
+    supporter_type: 'Unknown',
+    last_ticket_order_date: null,
+    last_shop_order_date: null,
+    membership_status: null,
+    last_stadium_entry_date: null,
+    ...overrides,
+  });
+
+  const createMockMembership = (overrides = {}): any => ({
+    id: 1,
+    supporter_id: 'supp-123',
+    tier: 'Full',
+    cadence: 'Annual',
+    billing_method: 'stripe',
+    status: 'Active',
+    last_payment_date: new Date(),
+    start_date: new Date(),
+    end_date: null,
+    created_at: new Date(),
+    updated_at: new Date(),
+    ...overrides,
+  });
+
   const createSQSMessage = (stripeEvent: any) => ({
     event: stripeEvent,
     s3Key: 'stripe/2024/01/01/payload.json',
@@ -80,7 +136,17 @@ describe('Stripe Event Processor', () => {
       messageId: `msg-${i}`,
       receiptHandle: `handle-${i}`,
       body: JSON.stringify(msg),
-      attributes: {},
+      attributes: {
+        ApproximateReceiveCount: '1',
+        SentTimestamp: `${Date.now()}`,
+        SenderId: 'AIDAIO23YVJENQZJOL4VO',
+        ApproximateFirstReceiveTimestamp: `${Date.now()}`,
+      },
+      messageAttributes: {},
+      md5OfBody: 'mock-md5',
+      eventSource: 'aws:sqs',
+      eventSourceARN: 'arn:aws:sqs:eu-west-1:123456789:stripe-queue',
+      awsRegion: 'eu-west-1',
     })),
   });
 
@@ -103,13 +169,13 @@ describe('Stripe Event Processor', () => {
         createSQSMessage(createStripeEvent('charge.succeeded', { id: 'ch-1' })),
       ];
 
-      mockSupporterRepo.findByEmail.mockResolvedValue([{
+      mockSupporterRepo.findByEmail.mockResolvedValue([createMockSupporter({
         supporter_id: 'supp-123',
         linked_ids: {},
-      }]);
+      })]);
       mockEventRepo.findByExternalId.mockResolvedValue(null);
-      mockEventRepo.create.mockResolvedValue({});
-      mockSupporterRepo.updateLinkedIds.mockResolvedValue({});
+      mockEventRepo.create.mockResolvedValue(createMockEvent() as any);
+      mockSupporterRepo.updateLinkedIds.mockResolvedValue(undefined as any);
 
       const event = createSQSEvent(messages);
 
@@ -124,11 +190,11 @@ describe('Stripe Event Processor', () => {
         createSQSMessage(createStripeEvent('payment_intent.succeeded', {})),
       ];
 
-      mockSupporterRepo.findByEmail.mockResolvedValue([{
+      mockSupporterRepo.findByEmail.mockResolvedValue([createMockSupporter({
         supporter_id: 'supp-123',
-      }]);
+      })]);
       mockEventRepo.findByExternalId.mockResolvedValue(null);
-      mockEventRepo.create.mockResolvedValue({});
+      mockEventRepo.create.mockResolvedValue(createMockEvent() as any);
 
       const event = createSQSEvent(messages);
 
@@ -177,12 +243,12 @@ describe('Stripe Event Processor', () => {
 
       const messages = [createSQSMessage(stripeEvent)];
 
-      mockSupporterRepo.findByEmail.mockResolvedValue([{
+      mockSupporterRepo.findByEmail.mockResolvedValue([createMockSupporter({
         supporter_id: 'supp-123',
         linked_ids: {},
-      }]);
+      })]);
       mockEventRepo.findByExternalId.mockResolvedValue(null);
-      mockEventRepo.create.mockResolvedValue({});
+      mockEventRepo.create.mockResolvedValue(createMockEvent() as any);
 
       const event = createSQSEvent(messages);
 
@@ -208,11 +274,11 @@ describe('Stripe Event Processor', () => {
 
       const messages = [createSQSMessage(stripeEvent)];
 
-      mockSupporterRepo.findByEmail.mockResolvedValue([{
+      mockSupporterRepo.findByEmail.mockResolvedValue([createMockSupporter({
         supporter_id: 'supp-123',
-      }]);
+      })]);
       mockEventRepo.findByExternalId.mockResolvedValue(null);
-      mockEventRepo.create.mockResolvedValue({});
+      mockEventRepo.create.mockResolvedValue(createMockEvent() as any);
 
       const event = createSQSEvent(messages);
 
@@ -236,13 +302,13 @@ describe('Stripe Event Processor', () => {
 
       const messages = [createSQSMessage(stripeEvent)];
 
-      mockSupporterRepo.findByEmail.mockResolvedValue([{
+      mockSupporterRepo.findByEmail.mockResolvedValue([createMockSupporter({
         supporter_id: 'supp-123',
         linked_ids: {},
-      }]);
+      })]);
       mockEventRepo.findByExternalId.mockResolvedValue(null);
-      mockEventRepo.create.mockResolvedValue({});
-      mockMembershipRepo.upsert.mockResolvedValue({});
+      mockEventRepo.create.mockResolvedValue(createMockEvent() as any);
+      mockMembershipRepo.upsert.mockResolvedValue({} as any);
 
       const event = createSQSEvent(messages);
 
@@ -300,12 +366,12 @@ describe('Stripe Event Processor', () => {
 
       const messages = [createSQSMessage(stripeEvent)];
 
-      mockSupporterRepo.findByEmail.mockResolvedValue([{
+      mockSupporterRepo.findByEmail.mockResolvedValue([createMockSupporter({
         supporter_id: 'supp-123',
         linked_ids: {},
-      }]);
+      })]);
       mockEventRepo.findByExternalId.mockResolvedValue(null);
-      mockEventRepo.create.mockResolvedValue({});
+      mockEventRepo.create.mockResolvedValue(createMockEvent() as any);
 
       const event = createSQSEvent(messages);
 
@@ -333,13 +399,13 @@ describe('Stripe Event Processor', () => {
 
       const messages = [createSQSMessage(stripeEvent)];
 
-      mockSupporterRepo.findByEmail.mockResolvedValue([{
+      mockSupporterRepo.findByEmail.mockResolvedValue([createMockSupporter({
         supporter_id: 'supp-123',
         linked_ids: {},
-      }]);
+      })]);
       mockEventRepo.findByExternalId.mockResolvedValue(null);
-      mockEventRepo.create.mockResolvedValue({});
-      mockSupporterRepo.updateLinkedIds.mockResolvedValue({});
+      mockEventRepo.create.mockResolvedValue(createMockEvent() as any);
+      mockSupporterRepo.updateLinkedIds.mockResolvedValue(undefined as any);
 
       const event = createSQSEvent(messages);
 
@@ -376,12 +442,13 @@ describe('Stripe Event Processor', () => {
         results: [{
           supporter_id: 'supp-123',
           linked_ids: { stripe: 'cus_abc' },
-        }],
+        } as any], // Cast to any because SearchResult doesn't have linked_ids but processor expects it
         total: 1,
       });
+      mockSupporterRepo.findById.mockResolvedValue(createMockSupporter());
       mockEventRepo.findByExternalId.mockResolvedValue(null);
-      mockEventRepo.create.mockResolvedValue({});
-      mockMembershipRepo.updateLastPaymentDate.mockResolvedValue({});
+      mockEventRepo.create.mockResolvedValue(createMockEvent() as any);
+      mockMembershipRepo.updateLastPaymentDate.mockResolvedValue(undefined as any);
 
       const event = createSQSEvent(messages);
 
@@ -410,12 +477,13 @@ describe('Stripe Event Processor', () => {
         results: [{
           supporter_id: 'supp-123',
           linked_ids: { stripe: 'cus_abc' },
-        }],
+        } as any], // Cast to any because SearchResult doesn't have linked_ids but processor expects it
         total: 1,
       });
+      mockSupporterRepo.findById.mockResolvedValue(createMockSupporter());
       mockEventRepo.findByExternalId.mockResolvedValue(null);
-      mockEventRepo.create.mockResolvedValue({});
-      mockMembershipRepo.updateLastPaymentDate.mockResolvedValue({});
+      mockEventRepo.create.mockResolvedValue(createMockEvent() as any);
+      mockMembershipRepo.updateLastPaymentDate.mockResolvedValue(undefined as any);
 
       const event = createSQSEvent(messages);
 
@@ -478,17 +546,15 @@ describe('Stripe Event Processor', () => {
         results: [{
           supporter_id: 'supp-123',
           linked_ids: { stripe: 'cus_abc' },
-        }],
+        } as any], // Cast to any because SearchResult doesn't have linked_ids but processor expects it
         total: 1,
       });
       mockEventRepo.findByExternalId.mockResolvedValue(null);
-      mockEventRepo.create.mockResolvedValue({});
-      mockMembershipRepo.findBySupporterId.mockResolvedValue({
-        id: 1,
-        supporter_id: 'supp-123',
+      mockEventRepo.create.mockResolvedValue(createMockEvent() as any);
+      mockMembershipRepo.findBySupporterId.mockResolvedValue(createMockMembership({
         status: 'Active',
-      });
-      mockMembershipRepo.markPastDue.mockResolvedValue({});
+      }));
+      mockMembershipRepo.markPastDue.mockResolvedValue(undefined as any);
 
       const event = createSQSEvent(messages);
 
@@ -512,17 +578,15 @@ describe('Stripe Event Processor', () => {
         results: [{
           supporter_id: 'supp-123',
           linked_ids: { stripe: 'cus_abc' },
-        }],
+        } as any], // Cast to any because SearchResult doesn't have linked_ids but processor expects it
         total: 1,
       });
       mockEventRepo.findByExternalId.mockResolvedValue(null);
-      mockEventRepo.create.mockResolvedValue({});
-      mockMembershipRepo.findBySupporterId.mockResolvedValue({
-        id: 1,
-        supporter_id: 'supp-123',
+      mockEventRepo.create.mockResolvedValue(createMockEvent() as any);
+      mockMembershipRepo.findBySupporterId.mockResolvedValue(createMockMembership({
         status: 'Active',
-      });
-      mockMembershipRepo.markPastDue.mockResolvedValue({});
+      }));
+      mockMembershipRepo.markPastDue.mockResolvedValue(undefined as any);
 
       const event = createSQSEvent(messages);
 
@@ -553,11 +617,11 @@ describe('Stripe Event Processor', () => {
         results: [{
           supporter_id: 'supp-123',
           linked_ids: { stripe: 'cus_abc' },
-        }],
+        } as any], // Cast to any because SearchResult doesn't have linked_ids but processor expects it
         total: 1,
       });
       mockEventRepo.findByExternalId.mockResolvedValue(null);
-      mockEventRepo.create.mockResolvedValue({});
+      mockEventRepo.create.mockResolvedValue(createMockEvent() as any);
       mockMembershipRepo.findBySupporterId.mockResolvedValue(null);
 
       const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation();
@@ -590,10 +654,17 @@ describe('Stripe Event Processor', () => {
       const messages = [createSQSMessage(stripeEvent)];
 
       mockSupporterRepo.findByEmail.mockResolvedValue([]);
-      mockSupporterRepo.create.mockResolvedValue({
+      mockSupporterRepo.create.mockResolvedValue(createMockSupporter({
         supporter_id: 'supp-new',
-      });
-      mockSupporterRepo.addEmailAlias.mockResolvedValue({});
+        primary_email: null,
+      }));
+      mockSupporterRepo.addEmailAlias.mockResolvedValue({
+        id: 1,
+        supporter_id: 'supp-123',
+        email: 'test@example.com',
+        is_shared: false,
+        created_at: new Date(),
+      } as any);
 
       const event = createSQSEvent(messages);
 
@@ -617,11 +688,11 @@ describe('Stripe Event Processor', () => {
 
       const messages = [createSQSMessage(stripeEvent)];
 
-      mockSupporterRepo.findByEmail.mockResolvedValue([{
+      mockSupporterRepo.findByEmail.mockResolvedValue([createMockSupporter({
         supporter_id: 'supp-existing',
         linked_ids: {},
-      }]);
-      mockSupporterRepo.updateLinkedIds.mockResolvedValue({});
+      })]);
+      mockSupporterRepo.updateLinkedIds.mockResolvedValue(undefined as any);
 
       const event = createSQSEvent(messages);
 
@@ -642,10 +713,10 @@ describe('Stripe Event Processor', () => {
       const messages = [createSQSMessage(stripeEvent)];
 
       mockSupporterRepo.findByEmail.mockResolvedValue([
-        { supporter_id: 'supp-1', flags: {} },
-        { supporter_id: 'supp-2', flags: {} },
+        createMockSupporter({ supporter_id: 'supp-1', flags: {} }),
+        createMockSupporter({ supporter_id: 'supp-2', flags: {} }),
       ]);
-      mockSupporterRepo.update.mockResolvedValue({});
+      mockSupporterRepo.update.mockResolvedValue(createMockSupporter() as any);
 
       const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
 
@@ -672,10 +743,10 @@ describe('Stripe Event Processor', () => {
       const messages = [createSQSMessage(stripeEvent)];
 
       mockSupporterRepo.findByEmail.mockResolvedValue([]);
-      mockSupporterRepo.create.mockResolvedValue({
+      mockSupporterRepo.create.mockResolvedValue(createMockSupporter({
         supporter_id: 'supp-no-email',
         primary_email: null,
-      });
+      }));
 
       const event = createSQSEvent(messages);
 
@@ -706,13 +777,13 @@ describe('Stripe Event Processor', () => {
 
       const messages = [createSQSMessage(stripeEvent)];
 
-      mockSupporterRepo.findByEmail.mockResolvedValue([{
+      mockSupporterRepo.findByEmail.mockResolvedValue([createMockSupporter({
         supporter_id: 'supp-existing',
         name: 'Old Name',
         phone: null,
         linked_ids: {},
-      }]);
-      mockSupporterRepo.updateLinkedIds.mockResolvedValue({});
+      })]);
+      mockSupporterRepo.updateLinkedIds.mockResolvedValue(undefined as any);
 
       const event = createSQSEvent(messages);
 
@@ -737,12 +808,12 @@ describe('Stripe Event Processor', () => {
 
       const messages = [createSQSMessage(stripeEvent)];
 
-      mockSupporterRepo.findByEmail.mockResolvedValue([{
+      mockSupporterRepo.findByEmail.mockResolvedValue([createMockSupporter({
         supporter_id: 'supp-existing',
         name: 'Existing Name',
         phone: '+353871234567',
         linked_ids: {},
-      }]);
+      })]);
 
       const event = createSQSEvent(messages);
 
@@ -767,12 +838,12 @@ describe('Stripe Event Processor', () => {
 
       const messages = [createSQSMessage(stripeEvent)];
 
-      mockSupporterRepo.findByEmail.mockResolvedValue([{
+      mockSupporterRepo.findByEmail.mockResolvedValue([createMockSupporter({
         supporter_id: 'supp-123',
-      }]);
-      mockEventRepo.findByExternalId.mockResolvedValue({
+      })]);
+      mockEventRepo.findByExternalId.mockResolvedValue(createMockEvent({
         event_id: 'existing',
-      });
+      }));
 
       const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation();
 
@@ -796,12 +867,12 @@ describe('Stripe Event Processor', () => {
 
       const messages = [createSQSMessage(stripeEvent)];
 
-      mockSupporterRepo.findByEmail.mockResolvedValue([{
+      mockSupporterRepo.findByEmail.mockResolvedValue([createMockSupporter({
         supporter_id: 'supp-123',
-      }]);
-      mockEventRepo.findByExternalId.mockResolvedValue({
+      })]);
+      mockEventRepo.findByExternalId.mockResolvedValue(createMockEvent({
         event_id: 'existing',
-      });
+      }));
 
       const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation();
 
@@ -826,12 +897,12 @@ describe('Stripe Event Processor', () => {
       const messages = [createSQSMessage(stripeEvent)];
 
       mockSupporterRepo.search.mockResolvedValue({
-        results: [{ supporter_id: 'supp-123', linked_ids: { stripe: 'cus_abc' } }],
+        results: [{ supporter_id: 'supp-123', linked_ids: { stripe: 'cus_abc' } } as any],
         total: 1,
       });
-      mockEventRepo.findByExternalId.mockResolvedValue({
+      mockEventRepo.findByExternalId.mockResolvedValue(createMockEvent({
         event_id: 'existing',
-      });
+      }));
 
       const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation();
 
@@ -863,19 +934,19 @@ describe('Stripe Event Processor', () => {
 
       const messages = [createSQSMessage(stripeEvent)];
 
-      mockSupporterRepo.findByEmail.mockResolvedValue([{
+      mockSupporterRepo.findByEmail.mockResolvedValue([createMockSupporter({
         supporter_id: 'supp-123',
-      }]);
+      })]);
       mockEventRepo.findByExternalId.mockResolvedValue(null);
-      mockEventRepo.create.mockResolvedValue({});
+      mockEventRepo.create.mockResolvedValue(createMockEvent() as any);
 
       const event = createSQSEvent(messages);
 
       await handler(event);
 
       const createCall = mockEventRepo.create.mock.calls[0];
-      expect(createCall[1].amount).toBeNull();
-      expect(createCall[1].currency).toBe('EUR'); // Default currency
+      expect(createCall[0].amount).toBeNull();
+      expect(createCall[0].currency).toBe('EUR'); // Default currency
     });
 
     it('should handle special characters in email', async () => {
@@ -887,11 +958,11 @@ describe('Stripe Event Processor', () => {
 
       const messages = [createSQSMessage(stripeEvent)];
 
-      mockSupporterRepo.findByEmail.mockResolvedValue([{
+      mockSupporterRepo.findByEmail.mockResolvedValue([createMockSupporter({
         supporter_id: 'supp-123',
-      }]);
+      })]);
       mockEventRepo.findByExternalId.mockResolvedValue(null);
-      mockEventRepo.create.mockResolvedValue({});
+      mockEventRepo.create.mockResolvedValue(createMockEvent() as any);
 
       const event = createSQSEvent(messages);
 
@@ -909,16 +980,16 @@ describe('Stripe Event Processor', () => {
 
       const messages = [createSQSMessage(stripeEvent)];
 
-      mockSupporterRepo.findByEmail.mockResolvedValue([{
+      mockSupporterRepo.findByEmail.mockResolvedValue([createMockSupporter({
         supporter_id: 'supp-123',
-      }]);
+      })]);
       mockEventRepo.findByExternalId.mockResolvedValue(null);
-      mockEventRepo.create.mockResolvedValue({});
+      mockEventRepo.create.mockResolvedValue(createMockEvent() as any);
 
       const event = createSQSEvent(messages);
 
       const createCall = mockEventRepo.create.mock.calls[0];
-      expect(createCall[1].amount).toBe(9999.99);
+      expect(createCall[0].amount).toBe(9999.99);
     });
 
     it('should handle missing customer_details', async () => {
@@ -934,12 +1005,19 @@ describe('Stripe Event Processor', () => {
       const messages = [createSQSMessage(stripeEvent)];
 
       mockSupporterRepo.findByEmail.mockResolvedValue([]);
-      mockSupporterRepo.create.mockResolvedValue({
+      mockSupporterRepo.create.mockResolvedValue(createMockSupporter({
         supporter_id: 'supp-new',
-      });
-      mockSupporterRepo.addEmailAlias.mockResolvedValue({});
+        primary_email: null,
+      }));
+      mockSupporterRepo.addEmailAlias.mockResolvedValue({
+        id: 1,
+        supporter_id: 'supp-123',
+        email: 'test@example.com',
+        is_shared: false,
+        created_at: new Date(),
+      } as any);
       mockEventRepo.findByExternalId.mockResolvedValue(null);
-      mockEventRepo.create.mockResolvedValue({});
+      mockEventRepo.create.mockResolvedValue(createMockEvent() as any);
 
       const event = createSQSEvent(messages);
 

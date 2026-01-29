@@ -35,24 +35,4 @@ module.exports = {
       statements: 70,
     },
   },
-  // Ignore patterns for specific test suites
-  projects: [
-    {
-      displayName: 'unit',
-      testMatch: ['<rootDir>/test/unit/**/*.test.ts'],
-      testEnvironment: 'node',
-    },
-    {
-      displayName: 'integration',
-      testMatch: ['<rootDir>/test/integration/**/*.test.ts'],
-      testEnvironment: 'node',
-      testTimeout: 60000,
-    },
-    {
-      displayName: 'e2e',
-      testMatch: ['<rootDir>/test/e2e/**/*.test.ts'],
-      testEnvironment: 'node',
-      testTimeout: 120000,
-    },
-  ],
 };

@@ -7,7 +7,7 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "npm run build --workspaces",
+    "build": "npm run build --workspace=@supporter360/shared && npm run build --workspace=@supporter360/database && npm run build --workspace=@supporter360/backend",
     "test": "npm run test --workspaces",
     "lint": "npm run lint --workspaces",
     "dev:frontend": "npm run dev --workspace=@supporter-360/frontend"

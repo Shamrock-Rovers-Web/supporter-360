@@ -14,7 +14,7 @@
  * @packageDocumentation
  */
 
-import { SQSHandler, SQSEvent, SQSRecord } from 'aws-lambda';
+import { SQSEvent, SQSRecord } from 'aws-lambda';
 import { SupporterRepository } from '../../db/repositories/supporter.repository';
 import { EventRepository } from '../../db/repositories/event.repository';
 import { query } from '../../db/connection';
@@ -171,7 +171,7 @@ type ProductMeaning = 'AwaySupporter' | 'SeasonTicket' | 'HomeTicket' | 'Other';
 // Lambda Handler
 // ============================================================================
 
-export const handler: SQSHandler = async (event: SQSEvent): Promise<void> => {
+export const handler = async (event: SQSEvent): Promise<void> => {
   console.log(`Processing ${event.Records.length} Future Ticketing messages`);
 
   for (const record of event.Records) {

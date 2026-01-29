@@ -152,3 +152,15 @@ CREATE TRIGGER update_mailchimp_membership_updated_at BEFORE UPDATE ON mailchimp
 
 CREATE TRIGGER update_membership_updated_at BEFORE UPDATE ON membership
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Mailchimp Aggregates Table
+CREATE TABLE IF NOT EXISTS supporter_mailchimp_aggregates (
+  supporter_id UUID PRIMARY KEY REFERENCES supporter(supporter_id) ON DELETE CASCADE,
+  click_count INTEGER DEFAULT 0,
+  last_click_date TIMESTAMP WITH TIME ZONE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TRIGGER update_supporter_mailchimp_aggregates_updated_at BEFORE UPDATE ON supporter_mailchimp_aggregates
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

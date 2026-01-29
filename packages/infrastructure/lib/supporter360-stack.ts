@@ -11,6 +11,7 @@ import * as lambdaEventSources from 'aws-cdk-lib/aws-lambda-event-sources';
 import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
 import * as origins from 'aws-cdk-lib/aws-cloudfront-origins';
 import * as iam from 'aws-cdk-lib/aws-iam';
+import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 import { Construct } from 'constructs';
 
 export class Supporter360Stack extends cdk.Stack {
@@ -180,31 +181,25 @@ export class Supporter360Stack extends cdk.Stack {
     };
 
     // ========================================
+    // AWS Secrets Manager - All Integration Credentials
+    // ========================================
+    // Reference existing secrets (created manually or via populate-secrets.sh)
+    const futureTicketingSecret = secretsmanager.Secret.fromSecretNameV2(this, 'FutureTicketingSecret', 'supporter360/future-ticketing');
+    const shopifySecret = secretsmanager.Secret.fromSecretNameV2(this, 'ShopifySecret', 'supporter360/shopify');
+    const stripeSecret = secretsmanager.Secret.fromSecretNameV2(this, 'StripeSecret', 'supporter360/stripe');
+    const gocardlessSecret = secretsmanager.Secret.fromSecretNameV2(this, 'GoCardlessSecret', 'supporter360/gocardless');
+    const mailchimpSecret = secretsmanager.Secret.fromSecretNameV2(this, 'MailchimpSecret', 'supporter360/mailchimp');
+
+    // ========================================
     // External API Configuration
     // ========================================
-    // Future Ticketing
+    // Public URLs (not secrets)
     const futureTicketingApiUrl = 'https://external.futureticketing.ie';
-    const futureTicketingApiKey = process.env.FUTURE_TICKETING_API_KEY || 'SET_IN_ENV';
-    const futureTicketingPrivateKey = process.env.FUTURE_TICKETING_PRIVATE_KEY || 'SET_IN_ENV';
-
-    // Shopify (2026 Dev Dashboard - OAuth 2.0 + EventBridge)
     const shopifyShopDomain = 'shamrock-rovers-fc.myshopify.com';
     const shopifyClientId = 'e5e5abc1adf25556a930aa87dba80d97';
-    const shopifyClientSecret = process.env.SHOPIFY_CLIENT_SECRET || 'SET_IN_ENV_OR_SECRETS_MANAGER';
     const shopifyEventBusArn = `arn:aws:events:eu-west-1:${this.account}:event-bus/aws.partner/shopify.com/313809895425/supporter360`;
-
-    // GoCardless (placeholder - add keys when available)
-    const gocardlessAccessToken = '';  // TODO: Add actual token
     const gocardlessApiUrl = 'https://api.gocardless.com';
-    const gocardlessEnvironment = 'sandbox';  // 'sandbox' or 'live'
-
-    // ========================================
-    // Webhook Secrets (update in Lambda console or use Secrets Manager)
-    // ========================================
-    const shopifyWebhookSecret = 'update-in-console-with-shopify-webhook-secret';
-    const stripeWebhookSecret = 'whsec_update-in-console-with-stripe-webhook-secret';
-    const gocardlessWebhookSecret = 'update-in-console-with-gocardless-webhook-secret';
-    const mailchimpWebhookSecret = 'update-in-console-with-mailchimp-webhook-secret';
+    const gocardlessEnvironment = 'live';
 
     // ========================================
     // Webhook Handlers
@@ -217,9 +212,10 @@ export class Supporter360Stack extends cdk.Stack {
       environment: {
         ...commonEnvironment,
         SHOPIFY_QUEUE_URL: shopifyQueue.queueUrl,
-        SHOPIFY_WEBHOOK_SECRET: shopifyWebhookSecret,
+        SHOPIFY_WEBHOOK_SECRET: shopifySecret.secretValueFromJson('webhookSecret').unsafeUnwrap(),
       },
     });
+    shopifySecret.grantRead(shopifyWebhookHandler);
 
     const stripeWebhookHandler = new lambda.Function(this, 'StripeWebhookHandler', {
       runtime: lambda.Runtime.NODEJS_18_X,
@@ -229,9 +225,10 @@ export class Supporter360Stack extends cdk.Stack {
       environment: {
         ...commonEnvironment,
         STRIPE_QUEUE_URL: stripeQueue.queueUrl,
-        STRIPE_WEBHOOK_SECRET: stripeWebhookSecret,
+        STRIPE_WEBHOOK_SECRET: stripeSecret.secretValueFromJson('webhookSecret').unsafeUnwrap(),
       },
     });
+    stripeSecret.grantRead(stripeWebhookHandler);
 
     const gocardlessWebhookHandler = new lambda.Function(this, 'GoCardlessWebhookHandler', {
       runtime: lambda.Runtime.NODEJS_18_X,
@@ -241,9 +238,10 @@ export class Supporter360Stack extends cdk.Stack {
       environment: {
         ...commonEnvironment,
         GOCARDLESS_QUEUE_URL: gocardlessQueue.queueUrl,
-        GOCARDLESS_WEBHOOK_SECRET: gocardlessWebhookSecret,
+        GOCARDLESS_WEBHOOK_SECRET: gocardlessSecret.secretValueFromJson('webhookSecret').unsafeUnwrap(),
       },
     });
+    gocardlessSecret.grantRead(gocardlessWebhookHandler);
 
     const mailchimpWebhookHandler = new lambda.Function(this, 'MailchimpWebhookHandler', {
       runtime: lambda.Runtime.NODEJS_18_X,
@@ -253,9 +251,10 @@ export class Supporter360Stack extends cdk.Stack {
       environment: {
         ...commonEnvironment,
         MAILCHIMP_QUEUE_URL: mailchimpQueue.queueUrl,
-        MAILCHIMP_WEBHOOK_SECRET: mailchimpWebhookSecret,
+        MAILCHIMP_WEBHOOK_SECRET: mailchimpSecret.secretValueFromJson('webhookSecret').unsafeUnwrap(),
       },
     });
+    mailchimpSecret.grantRead(mailchimpWebhookHandler);
 
     // Grant queue and S3 permissions to webhook handlers
     shopifyQueue.grantSendMessages(shopifyWebhookHandler);
@@ -282,9 +281,10 @@ export class Supporter360Stack extends cdk.Stack {
         ...commonEnvironment,
         SHOPIFY_SHOP_DOMAIN: shopifyShopDomain,
         SHOPIFY_CLIENT_ID: shopifyClientId,
-        SHOPIFY_CLIENT_SECRET: shopifyClientSecret,
+        SHOPIFY_CLIENT_SECRET: shopifySecret.secretValueFromJson('clientSecret').unsafeUnwrap(),
       },
     });
+    shopifySecret.grantRead(shopifyProcessor);
 
     const stripeProcessor = new lambda.Function(this, 'StripeProcessor', {
       runtime: lambda.Runtime.NODEJS_18_X,
@@ -294,8 +294,12 @@ export class Supporter360Stack extends cdk.Stack {
       vpc,
       vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
       securityGroups: [lambdaSecurityGroup],
-      environment: commonEnvironment,
+      environment: {
+        ...commonEnvironment,
+        STRIPE_SECRET_KEY: stripeSecret.secretValueFromJson('secretKey').unsafeUnwrap(),
+      },
     });
+    stripeSecret.grantRead(stripeProcessor);
 
     const gocardlessProcessor = new lambda.Function(this, 'GoCardlessProcessor', {
       runtime: lambda.Runtime.NODEJS_18_X,
@@ -305,8 +309,14 @@ export class Supporter360Stack extends cdk.Stack {
       vpc,
       vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
       securityGroups: [lambdaSecurityGroup],
-      environment: commonEnvironment,
+      environment: {
+        ...commonEnvironment,
+        GOCARDLESS_ACCESS_TOKEN: gocardlessSecret.secretValueFromJson('accessToken').unsafeUnwrap(),
+        GOCARDLESS_ENVIRONMENT: gocardlessEnvironment,
+        GOCARDLESS_API_URL: gocardlessApiUrl,
+      },
     });
+    gocardlessSecret.grantRead(gocardlessProcessor);
 
     const futureTicketingProcessor = new lambda.Function(this, 'FutureTicketingProcessor', {
       runtime: lambda.Runtime.NODEJS_18_X,
@@ -319,10 +329,11 @@ export class Supporter360Stack extends cdk.Stack {
       environment: {
         ...commonEnvironment,
         FUTURE_TICKETING_API_URL: futureTicketingApiUrl,
-        FUTURE_TICKETING_API_KEY: futureTicketingApiKey,
-        FUTURE_TICKETING_PRIVATE_KEY: futureTicketingPrivateKey,
+        FUTURE_TICKETING_API_KEY: futureTicketingSecret.secretValueFromJson('apiKey').unsafeUnwrap(),
+        FUTURE_TICKETING_PRIVATE_KEY: futureTicketingSecret.secretValueFromJson('privateKey').unsafeUnwrap(),
       },
     });
+    futureTicketingSecret.grantRead(futureTicketingProcessor);
 
     const mailchimpProcessor = new lambda.Function(this, 'MailchimpProcessor', {
       runtime: lambda.Runtime.NODEJS_18_X,
@@ -332,8 +343,12 @@ export class Supporter360Stack extends cdk.Stack {
       vpc,
       vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
       securityGroups: [lambdaSecurityGroup],
-      environment: commonEnvironment,
+      environment: {
+        ...commonEnvironment,
+        MAILCHIMP_API_KEY: mailchimpSecret.secretValueFromJson('apiKey').unsafeUnwrap(),
+      },
     });
+    mailchimpSecret.grantRead(mailchimpProcessor);
 
     // Attach SQS event sources to processors
     shopifyProcessor.addEventSource(new lambdaEventSources.SqsEventSource(shopifyQueue, {
@@ -420,12 +435,13 @@ export class Supporter360Stack extends cdk.Stack {
         ...commonEnvironment,
         FUTURE_TICKETING_QUEUE_URL: futureTicketingQueue.queueUrl,
         FUTURE_TICKETING_API_URL: futureTicketingApiUrl,
-        FUTURE_TICKETING_API_KEY: futureTicketingApiKey,
-        FUTURE_TICKETING_PRIVATE_KEY: futureTicketingPrivateKey,
+        FUTURE_TICKETING_API_KEY: futureTicketingSecret.secretValueFromJson('apiKey').unsafeUnwrap(),
+        FUTURE_TICKETING_PRIVATE_KEY: futureTicketingSecret.secretValueFromJson('privateKey').unsafeUnwrap(),
       },
     });
 
     futureTicketingQueue.grantSendMessages(futureTicketingPoller);
+    futureTicketingSecret.grantRead(futureTicketingPoller);
 
     new events.Rule(this, 'FutureTicketingPollingSchedule', {
       description: 'Trigger Future Ticketing poller every 5 minutes',

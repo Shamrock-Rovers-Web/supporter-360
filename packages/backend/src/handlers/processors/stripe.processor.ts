@@ -13,7 +13,7 @@
  * @packageDocumentation
  */
 
-import { SQSHandler, SQSEvent, SQSRecord } from 'aws-lambda';
+import { SQSEvent, SQSRecord } from 'aws-lambda';
 import { SupporterRepository } from '../../db/repositories/supporter.repository';
 import { EventRepository } from '../../db/repositories/event.repository';
 import { MembershipRepository, MembershipNotFoundError } from '../../db/repositories/membership.repository';
@@ -92,7 +92,7 @@ interface StripeInvoiceData extends StripeEventData {
 // Lambda Handler
 // ============================================================================
 
-export const handler: SQSHandler = async (event: SQSEvent): Promise<void> => {
+export const handler = async (event: SQSEvent): Promise<void> => {
   console.log(`Processing ${event.Records.length} Stripe webhook messages`);
 
   for (const record of event.Records) {
