@@ -11,15 +11,15 @@
  * @packageDocumentation
  */
 
-import { describe, it, expect, beforeEach, mock } from 'bun:test';
+import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 import { EventRepository, EventNotFoundError } from './event.repository';
 import type { Event, TimelineEvent, EventType, SourceSystem } from '@supporter360/shared';
 
-// Mock the connection module before importing
-const mockQuery = mock(() => Promise.resolve({ rows: [] }));
-const mockTransaction = mock(() => Promise.resolve({}));
+// Mock the connection module
+const mockQuery = jest.fn();
+const mockTransaction = jest.fn();
 
-mock.module('../connection', () => ({
+jest.mock('../connection', () => ({
   query: mockQuery,
   transaction: mockTransaction,
 }));
@@ -485,7 +485,7 @@ describe('EventRepository', () => {
       ];
 
       const mockClient = {
-        query: mock(() =>
+        query: jest.fn(() =>
           Promise.resolve({ rows: [mockEvents[0]] }))
           .mockResolvedValueOnce({ rows: [mockEvents[0]] })
           .mockResolvedValueOnce({ rows: [mockEvents[1]] })
@@ -515,7 +515,7 @@ describe('EventRepository', () => {
 
     it('should use upsert logic for bulk create', async () => {
       const mockClient = {
-        query: mock(() =>
+        query: jest.fn(() =>
           Promise.resolve({ rows: [createMockEvent()] })),
       };
 
@@ -540,7 +540,7 @@ describe('EventRepository', () => {
 
     it('should handle empty array', async () => {
       const mockClient = {
-        query: mock(() =>
+        query: jest.fn(() =>
           Promise.resolve({ rows: [] })),
       };
 

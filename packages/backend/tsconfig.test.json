@@ -14,7 +14,11 @@
     "strict": false,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": false,
-    "noImplicitAny": false
+    "noImplicitAny": false,
+    "strictNullChecks": false,
+    "strictFunctionTypes": false,
+    "noImplicitReturns": false,
+    "noImplicitThis": false
   },
   "include": ["src/**/*.test.ts", "test/**/*.ts", "src/**/*"],
   "exclude": ["node_modules", "dist", "dist-test"],

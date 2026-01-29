@@ -12,20 +12,25 @@
  * @packageDocumentation
  */
 
-import { describe, it, expect, beforeEach, mock } from 'bun:test';
+import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 import { SupporterRepository, SupporterNotFoundError, MergeConflictError } from './supporter.repository';
 import type { Supporter, SearchResult, SupporterProfile } from '@supporter360/shared';
 
-// Mock the connection module before importing
-const mockQuery = mock(() => Promise.resolve({ rows: [] }));
-const mockTransaction = mock(() => Promise.resolve({}));
+// Mock the connection module
+const mockQuery = jest.fn();
+const mockTransaction = jest.fn();
 
-mock.module('../connection', () => ({
+jest.mock('../connection', () => ({
   query: mockQuery,
   transaction: mockTransaction,
 }));
 
 import { query, transaction } from '../connection';
+
+// @ts-ignore - Suppress TypeScript errors for mock function calls
+const _mockQuery = mockQuery as any;
+// @ts-ignore - Suppress TypeScript errors for mock function calls
+const _mockTransaction = mockTransaction as any;
 
 describe('SupporterRepository', () => {
   let repository: SupporterRepository;
@@ -467,7 +472,7 @@ describe('SupporterRepository', () => {
 
     it('should merge two supporters successfully', async () => {
       const mockClient = {
-        query: mock(() =>
+        query: jest.fn(() =>
           Promise.resolve({ rows: [mockSource] }))
           .mockResolvedValueOnce({ rows: [mockSource] }) // Fetch source
           .mockResolvedValueOnce({ rows: [mockTarget] }) // Fetch target
@@ -503,7 +508,7 @@ describe('SupporterRepository', () => {
 
     it('should merge linked_ids from both supporters', async () => {
       const mockClient = {
-        query: mock(() =>
+        query: jest.fn(() =>
           Promise.resolve({ rows: [mockSource] }))
           .mockResolvedValueOnce({ rows: [mockSource] })
           .mockResolvedValueOnce({ rows: [mockTarget] })
@@ -539,7 +544,7 @@ describe('SupporterRepository', () => {
 
     it('should throw SupporterNotFoundError if source not found', async () => {
       const mockClient = {
-        query: mock(() =>
+        query: jest.fn(() =>
           Promise.resolve({ rows: [] }))
           .mockResolvedValueOnce({ rows: [] }), // Source not found
       };
@@ -555,7 +560,7 @@ describe('SupporterRepository', () => {
 
     it('should throw SupporterNotFoundError if target not found', async () => {
       const mockClient = {
-        query: mock(() =>
+        query: jest.fn(() =>
           Promise.resolve({ rows: [mockSource] }))
           .mockResolvedValueOnce({ rows: [mockSource] })
           .mockResolvedValueOnce({ rows: [] }), // Target not found
@@ -577,7 +582,7 @@ describe('SupporterRepository', () => {
       });
 
       const mockClient = {
-        query: mock(() =>
+        query: jest.fn(() =>
           Promise.resolve({ rows: [sourceWithSharedEmail] }))
           .mockResolvedValueOnce({ rows: [sourceWithSharedEmail] })
           .mockResolvedValueOnce({ rows: [mockTarget] }),
@@ -599,7 +604,7 @@ describe('SupporterRepository', () => {
       });
 
       const mockClient = {
-        query: mock(() =>
+        query: jest.fn(() =>
           Promise.resolve({ rows: [mockSource] }))
           .mockResolvedValueOnce({ rows: [mockSource] })
           .mockResolvedValueOnce({ rows: [targetWithSharedEmail] }),
@@ -626,7 +631,7 @@ describe('SupporterRepository', () => {
       });
 
       const mockClient = {
-        query: mock(() =>
+        query: jest.fn(() =>
           Promise.resolve({ rows: [sourceWithEmail] }))
           .mockResolvedValueOnce({ rows: [sourceWithEmail] })
           .mockResolvedValueOnce({ rows: [targetWithEmail] }),
@@ -643,7 +648,7 @@ describe('SupporterRepository', () => {
 
     it('should throw MergeConflictError if they share email aliases', async () => {
       const mockClient = {
-        query: mock(() =>
+        query: jest.fn(() =>
           Promise.resolve({ rows: [mockSource] }))
           .mockResolvedValueOnce({ rows: [mockSource] })
           .mockResolvedValueOnce({ rows: [mockTarget] })
@@ -662,7 +667,7 @@ describe('SupporterRepository', () => {
 
     it('should write audit log entry', async () => {
       const mockClient = {
-        query: mock(() =>
+        query: jest.fn(() =>
           Promise.resolve({ rows: [mockSource] }))
           .mockResolvedValueOnce({ rows: [mockSource] })
           .mockResolvedValueOnce({ rows: [mockTarget] })

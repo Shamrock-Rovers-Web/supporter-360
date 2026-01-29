@@ -12,13 +12,13 @@
  * @packageDocumentation
  */
 
-import { describe, it, expect, beforeEach, mock } from 'bun:test';
+import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 import { MembershipRepository, MembershipNotFoundError, MembershipConflictError } from './membership.repository';
 
-// Mock the connection module before importing
-const mockQuery = mock(() => Promise.resolve({ rows: [] }));
+// Mock the connection module
+const mockQuery = jest.fn();
 
-mock.module('../connection', () => ({
+jest.mock('../connection', () => ({
   query: mockQuery,
 }));
 
