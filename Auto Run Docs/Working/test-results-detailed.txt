@@ -1,0 +1,519 @@
+
+> @supporter360/backend@1.0.0 test
+> jest --verbose
+
+  [2m[31mconsole.error[39m[22m
+[31m    Profile error: Error: Database error[39m
+[31m        at Object.<anonymous> (/mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/api/profile.handler.test.ts:511:51)[39m
+[31m        at Promise.then.completed (/mnt/c/dev/srfc/supporter/supporter-360/node_modules/jest-circus/build/utils.js:298:28)[39m
+[31m        at new Promise (<anonymous>)[39m
+[31m        at callAsyncCircusFn (/mnt/c/dev/srfc/supporter/supporter-360/node_modules/jest-circus/build/utils.js:231:10)[39m
+[31m        at _callCircusTest (/mnt/c/dev/srfc/supporter/supporter-360/node_modules/jest-circus/build/run.js:316:40)[39m
+[31m        at processTicksAndRejections (node:internal/process/task_queues:105:5)[39m
+[31m        at _runTest (/mnt/c/dev/srfc/supporter/supporter-360/node_modules/jest-circus/build/run.js:252:3)[39m
+[31m        at _runTestsForDescribeBlock (/mnt/c/dev/srfc/supporter/supporter-360/node_modules/jest-circus/build/run.js:126:9)[39m
+[31m        at _runTestsForDescribeBlock (/mnt/c/dev/srfc/supporter/supporter-360/node_modules/jest-circus/build/run.js:121:9)[39m
+[31m        at _runTestsForDescribeBlock (/mnt/c/dev/srfc/supporter/supporter-360/node_modules/jest-circus/build/run.js:121:9)[39m
+[31m        at run (/mnt/c/dev/srfc/supporter/supporter-360/node_modules/jest-circus/build/run.js:71:3)[39m
+[31m        at runAndTransformResultsToJestFormat (/mnt/c/dev/srfc/supporter/supporter-360/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapterInit.js:122:21)[39m
+[31m        at jestAdapter (/mnt/c/dev/srfc/supporter/supporter-360/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapter.js:79:19)[39m
+[31m        at runTestInternal (/mnt/c/dev/srfc/supporter/supporter-360/node_modules/jest-runner/build/runTest.js:367:16)[39m
+[31m        at runTest (/mnt/c/dev/srfc/supporter/supporter-360/node_modules/jest-runner/build/runTest.js:444:34)[39m
+[31m        at Object.worker (/mnt/c/dev/srfc/supporter/supporter-360/node_modules/jest-runner/build/testWorker.js:106:12)[39m
+[2m[22m
+[2m    [0m [90m 119 |[39m     }[22m
+[2m     [90m 120 |[39m[22m
+[2m    [31m[1m>[22m[2m[39m[90m 121 |[39m     console[33m.[39merror([32m'Profile error:'[39m[33m,[39m error)[33m;[39m[22m
+[2m     [90m     |[39m             [31m[1m^[22m[2m[39m[22m
+[2m     [90m 122 |[39m     [36mreturn[39m errorResponse([22m
+[2m     [90m 123 |[39m       [32m'Failed to retrieve supporter profile'[39m[33m,[39m[22m
+[2m     [90m 124 |[39m       [35m500[39m[33m,[39m[0m[22m
+[2m[22m
+[2m      [2mat [22m[2msrc/handlers/api/profile.handler.ts[2m:121:13[22m[2m[22m
+
+  [2m[31mconsole.error[39m[22m
+[31m    Search error: TypeError: Cannot destructure property 'results' of '(intermediate value)' as it is undefined.[39m
+[31m        at /mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/api/search.handler.ts:118:13[39m
+[31m        at processTicksAndRejections (node:internal/process/task_queues:105:5)[39m
+[2m[22m
+[2m    [0m [90m 146 |[39m     })[33m;[39m[22m
+[2m     [90m 147 |[39m   } [36mcatch[39m (error) {[22m
+[2m    [31m[1m>[22m[2m[39m[90m 148 |[39m     console[33m.[39merror([32m'Search error:'[39m[33m,[39m error)[33m;[39m[22m
+[2m     [90m     |[39m             [31m[1m^[22m[2m[39m[22m
+[2m     [90m 149 |[39m     [36mreturn[39m errorResponse([22m
+[2m     [90m 150 |[39m       [32m'Search failed'[39m[33m,[39m[22m
+[2m     [90m 151 |[39m       [35m500[39m[33m,[39m[0m[22m
+[2m[22m
+[2m      [2mat [22m[2msrc/handlers/api/search.handler.ts[2m:148:13[22m[2m[22m
+
+  [2m[31mconsole.error[39m[22m
+[31m    Timeline error: TypeError: Cannot read properties of undefined (reading 'toISOString')[39m
+[31m        at toTimelineEvent (/mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/api/timeline.handler.ts:116:34)[39m
+[31m        at Array.map (<anonymous>)[39m
+[31m        at /mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/api/timeline.handler.ts:172:22[39m
+[31m        at processTicksAndRejections (node:internal/process/task_queues:105:5)[39m
+[31m        at Object.<anonymous> (/mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/api/timeline.handler.test.ts:357:22)[39m
+[2m[22m
+[2m    [0m [90m 190 |[39m     }[22m
+[2m     [90m 191 |[39m[22m
+[2m    [31m[1m>[22m[2m[39m[90m 192 |[39m     console[33m.[39merror([32m'Timeline error:'[39m[33m,[39m error)[33m;[39m[22m
+[2m     [90m     |[39m             [31m[1m^[22m[2m[39m[22m
+[2m     [90m 193 |[39m     [36mreturn[39m errorResponse([22m
+[2m     [90m 194 |[39m       [32m'Failed to retrieve timeline'[39m[33m,[39m[22m
+[2m     [90m 195 |[39m       [35m500[39m[33m,[39m[0m[22m
+[2m[22m
+[2m      [2mat [22m[2msrc/handlers/api/timeline.handler.ts[2m:192:13[22m[2m[22m
+[2m      [2mat Object.<anonymous> ([22m[2m[0m[36msrc/handlers/api/timeline.handler.test.ts[39m[0m[2m:357:22)[22m[2m[22m
+
+  [2m[31mconsole.error[39m[22m
+[31m    Timeline error: TypeError: Cannot read properties of undefined (reading 'toISOString')[39m
+[31m        at toTimelineEvent (/mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/api/timeline.handler.ts:116:34)[39m
+[31m        at Array.map (<anonymous>)[39m
+[31m        at /mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/api/timeline.handler.ts:172:22[39m
+[31m        at processTicksAndRejections (node:internal/process/task_queues:105:5)[39m
+[31m        at Object.<anonymous> (/mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/api/timeline.handler.test.ts:372:22)[39m
+[2m[22m
+[2m    [0m [90m 190 |[39m     }[22m
+[2m     [90m 191 |[39m[22m
+[2m    [31m[1m>[22m[2m[39m[90m 192 |[39m     console[33m.[39merror([32m'Timeline error:'[39m[33m,[39m error)[33m;[39m[22m
+[2m     [90m     |[39m             [31m[1m^[22m[2m[39m[22m
+[2m     [90m 193 |[39m     [36mreturn[39m errorResponse([22m
+[2m     [90m 194 |[39m       [32m'Failed to retrieve timeline'[39m[33m,[39m[22m
+[2m     [90m 195 |[39m       [35m500[39m[33m,[39m[0m[22m
+[2m[22m
+[2m      [2mat [22m[2msrc/handlers/api/timeline.handler.ts[2m:192:13[22m[2m[22m
+[2m      [2mat Object.<anonymous> ([22m[2m[0m[36msrc/handlers/api/timeline.handler.test.ts[39m[0m[2m:372:22)[22m[2m[22m
+
+  [2m[31mconsole.error[39m[22m
+[31m    Timeline error: Error: Database error[39m
+[31m        at Object.<anonymous> (/mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/api/timeline.handler.test.ts:583:63)[39m
+[31m        at Promise.then.completed (/mnt/c/dev/srfc/supporter/supporter-360/node_modules/jest-circus/build/utils.js:298:28)[39m
+[31m        at new Promise (<anonymous>)[39m
+[31m        at callAsyncCircusFn (/mnt/c/dev/srfc/supporter/supporter-360/node_modules/jest-circus/build/utils.js:231:10)[39m
+[31m        at _callCircusTest (/mnt/c/dev/srfc/supporter/supporter-360/node_modules/jest-circus/build/run.js:316:40)[39m
+[31m        at processTicksAndRejections (node:internal/process/task_queues:105:5)[39m
+[31m        at _runTest (/mnt/c/dev/srfc/supporter/supporter-360/node_modules/jest-circus/build/run.js:252:3)[39m
+[31m        at _runTestsForDescribeBlock (/mnt/c/dev/srfc/supporter/supporter-360/node_modules/jest-circus/build/run.js:126:9)[39m
+[31m        at _runTestsForDescribeBlock (/mnt/c/dev/srfc/supporter/supporter-360/node_modules/jest-circus/build/run.js:121:9)[39m
+[31m        at _runTestsForDescribeBlock (/mnt/c/dev/srfc/supporter/supporter-360/node_modules/jest-circus/build/run.js:121:9)[39m
+[31m        at run (/mnt/c/dev/srfc/supporter/supporter-360/node_modules/jest-circus/build/run.js:71:3)[39m
+[31m        at runAndTransformResultsToJestFormat (/mnt/c/dev/srfc/supporter/supporter-360/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapterInit.js:122:21)[39m
+[31m        at jestAdapter (/mnt/c/dev/srfc/supporter/supporter-360/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapter.js:79:19)[39m
+[31m        at runTestInternal (/mnt/c/dev/srfc/supporter/supporter-360/node_modules/jest-runner/build/runTest.js:367:16)[39m
+[31m        at runTest (/mnt/c/dev/srfc/supporter/supporter-360/node_modules/jest-runner/build/runTest.js:444:34)[39m
+[31m        at Object.worker (/mnt/c/dev/srfc/supporter/supporter-360/node_modules/jest-runner/build/testWorker.js:106:12)[39m
+[2m[22m
+[2m    [0m [90m 190 |[39m     }[22m
+[2m     [90m 191 |[39m[22m
+[2m    [31m[1m>[22m[2m[39m[90m 192 |[39m     console[33m.[39merror([32m'Timeline error:'[39m[33m,[39m error)[33m;[39m[22m
+[2m     [90m     |[39m             [31m[1m^[22m[2m[39m[22m
+[2m     [90m 193 |[39m     [36mreturn[39m errorResponse([22m
+[2m     [90m 194 |[39m       [32m'Failed to retrieve timeline'[39m[33m,[39m[22m
+[2m     [90m 195 |[39m       [35m500[39m[33m,[39m[0m[22m
+[2m[22m
+[2m      [2mat [22m[2msrc/handlers/api/timeline.handler.ts[2m:192:13[22m[2m[22m
+
+  [2m[31mconsole.error[39m[22m
+[31m    Search error: Error: Database connection failed[39m
+[31m        at Object.<anonymous> (/mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/api/search.handler.test.ts:598:47)[39m
+[31m        at Promise.then.completed (/mnt/c/dev/srfc/supporter/supporter-360/node_modules/jest-circus/build/utils.js:298:28)[39m
+[31m        at new Promise (<anonymous>)[39m
+[31m        at callAsyncCircusFn (/mnt/c/dev/srfc/supporter/supporter-360/node_modules/jest-circus/build/utils.js:231:10)[39m
+[31m        at _callCircusTest (/mnt/c/dev/srfc/supporter/supporter-360/node_modules/jest-circus/build/run.js:316:40)[39m
+[31m        at processTicksAndRejections (node:internal/process/task_queues:105:5)[39m
+[31m        at _runTest (/mnt/c/dev/srfc/supporter/supporter-360/node_modules/jest-circus/build/run.js:252:3)[39m
+[31m        at _runTestsForDescribeBlock (/mnt/c/dev/srfc/supporter/supporter-360/node_modules/jest-circus/build/run.js:126:9)[39m
+[31m        at _runTestsForDescribeBlock (/mnt/c/dev/srfc/supporter/supporter-360/node_modules/jest-circus/build/run.js:121:9)[39m
+[31m        at _runTestsForDescribeBlock (/mnt/c/dev/srfc/supporter/supporter-360/node_modules/jest-circus/build/run.js:121:9)[39m
+[31m        at run (/mnt/c/dev/srfc/supporter/supporter-360/node_modules/jest-circus/build/run.js:71:3)[39m
+[31m        at runAndTransformResultsToJestFormat (/mnt/c/dev/srfc/supporter/supporter-360/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapterInit.js:122:21)[39m
+[31m        at jestAdapter (/mnt/c/dev/srfc/supporter/supporter-360/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapter.js:79:19)[39m
+[31m        at runTestInternal (/mnt/c/dev/srfc/supporter/supporter-360/node_modules/jest-runner/build/runTest.js:367:16)[39m
+[31m        at runTest (/mnt/c/dev/srfc/supporter/supporter-360/node_modules/jest-runner/build/runTest.js:444:34)[39m
+[31m        at Object.worker (/mnt/c/dev/srfc/supporter/supporter-360/node_modules/jest-runner/build/testWorker.js:106:12)[39m
+[2m[22m
+[2m    [0m [90m 146 |[39m     })[33m;[39m[22m
+[2m     [90m 147 |[39m   } [36mcatch[39m (error) {[22m
+[2m    [31m[1m>[22m[2m[39m[90m 148 |[39m     console[33m.[39merror([32m'Search error:'[39m[33m,[39m error)[33m;[39m[22m
+[2m     [90m     |[39m             [31m[1m^[22m[2m[39m[22m
+[2m     [90m 149 |[39m     [36mreturn[39m errorResponse([22m
+[2m     [90m 150 |[39m       [32m'Search failed'[39m[33m,[39m[22m
+[2m     [90m 151 |[39m       [35m500[39m[33m,[39m[0m[22m
+[2m[22m
+[2m      [2mat [22m[2msrc/handlers/api/search.handler.ts[2m:148:13[22m[2m[22m
+
+  [2m[31mconsole.error[39m[22m
+[31m    Timeline error: Error: Invalid start_date format: invalid-date[39m
+[31m        at parseQueryParams (/mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/api/timeline.handler.ts:80:13)[39m
+[31m        at /mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/api/timeline.handler.ts:146:7[39m
+[31m        at /mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/api/timeline.handler.test.ts:25:12[39m
+[31m        at Object.<anonymous> (/mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/api/timeline.handler.test.ts:674:35)[39m
+[31m        at Promise.then.completed (/mnt/c/dev/srfc/supporter/supporter-360/node_modules/jest-circus/build/utils.js:298:28)[39m
+[31m        at new Promise (<anonymous>)[39m
+[31m        at callAsyncCircusFn (/mnt/c/dev/srfc/supporter/supporter-360/node_modules/jest-circus/build/utils.js:231:10)[39m
+[31m        at _callCircusTest (/mnt/c/dev/srfc/supporter/supporter-360/node_modules/jest-circus/build/run.js:316:40)[39m
+[31m        at processTicksAndRejections (node:internal/process/task_queues:105:5)[39m
+[31m        at _runTest (/mnt/c/dev/srfc/supporter/supporter-360/node_modules/jest-circus/build/run.js:252:3)[39m
+[31m        at _runTestsForDescribeBlock (/mnt/c/dev/srfc/supporter/supporter-360/node_modules/jest-circus/build/run.js:126:9)[39m
+[31m        at _runTestsForDescribeBlock (/mnt/c/dev/srfc/supporter/supporter-360/node_modules/jest-circus/build/run.js:121:9)[39m
+[31m        at _runTestsForDescribeBlock (/mnt/c/dev/srfc/supporter/supporter-360/node_modules/jest-circus/build/run.js:121:9)[39m
+[31m        at run (/mnt/c/dev/srfc/supporter/supporter-360/node_modules/jest-circus/build/run.js:71:3)[39m
+[31m        at runAndTransformResultsToJestFormat (/mnt/c/dev/srfc/supporter/supporter-360/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapterInit.js:122:21)[39m
+[31m        at jestAdapter (/mnt/c/dev/srfc/supporter/supporter-360/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapter.js:79:19)[39m
+[31m        at runTestInternal (/mnt/c/dev/srfc/supporter/supporter-360/node_modules/jest-runner/build/runTest.js:367:16)[39m
+[31m        at runTest (/mnt/c/dev/srfc/supporter/supporter-360/node_modules/jest-runner/build/runTest.js:444:34)[39m
+[31m        at Object.worker (/mnt/c/dev/srfc/supporter/supporter-360/node_modules/jest-runner/build/testWorker.js:106:12)[39m
+[2m[22m
+[2m    [0m [90m 190 |[39m     }[22m
+[2m     [90m 191 |[39m[22m
+[2m    [31m[1m>[22m[2m[39m[90m 192 |[39m     console[33m.[39merror([32m'Timeline error:'[39m[33m,[39m error)[33m;[39m[22m
+[2m     [90m     |[39m             [31m[1m^[22m[2m[39m[22m
+[2m     [90m 193 |[39m     [36mreturn[39m errorResponse([22m
+[2m     [90m 194 |[39m       [32m'Failed to retrieve timeline'[39m[33m,[39m[22m
+[2m     [90m 195 |[39m       [35m500[39m[33m,[39m[0m[22m
+[2m[22m
+[2m      [2mat [22m[2msrc/handlers/api/timeline.handler.ts[2m:192:13[22m[2m[22m
+[2m      [2mat [22m[2m[0m[36msrc/handlers/api/timeline.handler.test.ts[39m[0m[2m:25:12[22m[2m[22m
+[2m      [2mat Object.<anonymous> ([22m[2m[0m[36msrc/handlers/api/timeline.handler.test.ts[39m[0m[2m:674:35)[22m[2m[22m
+
+  [2m[31mconsole.error[39m[22m
+[31m    Error processing Stripe message: TypeError: Cannot read properties of undefined (reading 'length')[39m
+[31m        at findOrCreateSupporterFromPayment (/mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/processors/stripe.processor.ts:488:20)[39m
+[31m        at processTicksAndRejections (node:internal/process/task_queues:105:5)[39m
+[31m        at handlePaymentIntentSucceeded (/mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/processors/stripe.processor.ts:168:21)[39m
+[31m        at processStripeMessage (/mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/processors/stripe.processor.ts:124:7)[39m
+[31m        at handler (/mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/processors/stripe.processor.ts:100:7)[39m
+[31m        at Object.<anonymous> (/mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/processors/stripe.processor.test.ts:255:7)[39m
+[2m[22m
+[2m    [0m [90m 100 |[39m       [36mawait[39m processStripeMessage(record)[33m;[39m[22m
+[2m     [90m 101 |[39m     } [36mcatch[39m (error) {[22m
+[2m    [31m[1m>[22m[2m[39m[90m 102 |[39m       console[33m.[39merror([32m'Error processing Stripe message:'[39m[33m,[39m error)[33m;[39m[22m
+[2m     [90m     |[39m               [31m[1m^[22m[2m[39m[22m
+[2m     [90m 103 |[39m       [90m// Re-throw to trigger DLQ[39m[22m
+[2m     [90m 104 |[39m       [36mthrow[39m error[33m;[39m[22m
+[2m     [90m 105 |[39m     }[0m[22m
+[2m[22m
+[2m      [2mat handler ([22m[2msrc/handlers/processors/stripe.processor.ts[2m:102:15)[22m[2m[22m
+[2m      [2mat Object.<anonymous> ([22m[2m[0m[36msrc/handlers/processors/stripe.processor.test.ts[39m[0m[2m:255:7)[22m[2m[22m
+
+  [2m[31mconsole.error[39m[22m
+[31m    Error processing Stripe message: TypeError: Cannot read properties of undefined (reading 'length')[39m
+[31m        at findOrCreateSupporterFromPayment (/mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/processors/stripe.processor.ts:488:20)[39m
+[31m        at processTicksAndRejections (node:internal/process/task_queues:105:5)[39m
+[31m        at handlePaymentIntentSucceeded (/mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/processors/stripe.processor.ts:168:21)[39m
+[31m        at processStripeMessage (/mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/processors/stripe.processor.ts:124:7)[39m
+[31m        at handler (/mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/processors/stripe.processor.ts:100:7)[39m
+[31m        at Object.<anonymous> (/mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/processors/stripe.processor.test.ts:285:7)[39m
+[2m[22m
+[2m    [0m [90m 100 |[39m       [36mawait[39m processStripeMessage(record)[33m;[39m[22m
+[2m     [90m 101 |[39m     } [36mcatch[39m (error) {[22m
+[2m    [31m[1m>[22m[2m[39m[90m 102 |[39m       console[33m.[39merror([32m'Error processing Stripe message:'[39m[33m,[39m error)[33m;[39m[22m
+[2m     [90m     |[39m               [31m[1m^[22m[2m[39m[22m
+[2m     [90m 103 |[39m       [90m// Re-throw to trigger DLQ[39m[22m
+[2m     [90m 104 |[39m       [36mthrow[39m error[33m;[39m[22m
+[2m     [90m 105 |[39m     }[0m[22m
+[2m[22m
+[2m      [2mat handler ([22m[2msrc/handlers/processors/stripe.processor.ts[2m:102:15)[22m[2m[22m
+[2m      [2mat Object.<anonymous> ([22m[2m[0m[36msrc/handlers/processors/stripe.processor.test.ts[39m[0m[2m:285:7)[22m[2m[22m
+
+  [2m[31mconsole.error[39m[22m
+[31m    Error processing Stripe message: TypeError: Cannot read properties of undefined (reading 'results')[39m
+[31m        at findSupporterByStripeId (/mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/processors/stripe.processor.ts:554:24)[39m
+[31m        at processTicksAndRejections (node:internal/process/task_queues:105:5)[39m
+[31m        at findOrCreateSupporterFromPayment (/mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/processors/stripe.processor.ts:517:23)[39m
+[31m        at handleChargeSucceeded (/mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/processors/stripe.processor.ts:226:21)[39m
+[31m        at processStripeMessage (/mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/processors/stripe.processor.ts:128:7)[39m
+[31m        at handler (/mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/processors/stripe.processor.ts:100:7)[39m
+[31m        at Object.<anonymous> (/mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/processors/stripe.processor.test.ts:412:7)[39m
+[2m[22m
+[2m    [0m [90m 100 |[39m       [36mawait[39m processStripeMessage(record)[33m;[39m[22m
+[2m     [90m 101 |[39m     } [36mcatch[39m (error) {[22m
+[2m    [31m[1m>[22m[2m[39m[90m 102 |[39m       console[33m.[39merror([32m'Error processing Stripe message:'[39m[33m,[39m error)[33m;[39m[22m
+[2m     [90m     |[39m               [31m[1m^[22m[2m[39m[22m
+[2m     [90m 103 |[39m       [90m// Re-throw to trigger DLQ[39m[22m
+[2m     [90m 104 |[39m       [36mthrow[39m error[33m;[39m[22m
+[2m     [90m 105 |[39m     }[0m[22m
+[2m[22m
+[2m      [2mat handler ([22m[2msrc/handlers/processors/stripe.processor.ts[2m:102:15)[22m[2m[22m
+[2m      [2mat Object.<anonymous> ([22m[2m[0m[36msrc/handlers/processors/stripe.processor.test.ts[39m[0m[2m:412:7)[22m[2m[22m
+
+  [2m[31mconsole.error[39m[22m
+[31m    Error processing Stripe message: TypeError: Cannot read properties of undefined (reading 'results')[39m
+[31m        at findSupporterByStripeId (/mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/processors/stripe.processor.ts:554:24)[39m
+[31m        at processTicksAndRejections (node:internal/process/task_queues:105:5)[39m
+[31m        at handleInvoicePaymentSucceeded (/mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/processors/stripe.processor.ts:281:21)[39m
+[31m        at processStripeMessage (/mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/processors/stripe.processor.ts:132:7)[39m
+[31m        at handler (/mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/processors/stripe.processor.ts:100:7)[39m
+[31m        at Object.<anonymous> (/mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/processors/stripe.processor.test.ts:455:7)[39m
+[2m[22m
+[2m    [0m [90m 100 |[39m       [36mawait[39m processStripeMessage(record)[33m;[39m[22m
+[2m     [90m 101 |[39m     } [36mcatch[39m (error) {[22m
+[2m    [31m[1m>[22m[2m[39m[90m 102 |[39m       console[33m.[39merror([32m'Error processing Stripe message:'[39m[33m,[39m error)[33m;[39m[22m
+[2m     [90m     |[39m               [31m[1m^[22m[2m[39m[22m
+[2m     [90m 103 |[39m       [90m// Re-throw to trigger DLQ[39m[22m
+[2m     [90m 104 |[39m       [36mthrow[39m error[33m;[39m[22m
+[2m     [90m 105 |[39m     }[0m[22m
+[2m[22m
+[2m      [2mat handler ([22m[2msrc/handlers/processors/stripe.processor.ts[2m:102:15)[22m[2m[22m
+[2m      [2mat Object.<anonymous> ([22m[2m[0m[36msrc/handlers/processors/stripe.processor.test.ts[39m[0m[2m:455:7)[22m[2m[22m
+
+  [2m[31mconsole.error[39m[22m
+[31m    Error processing Stripe message: TypeError: Cannot read properties of undefined (reading 'results')[39m
+[31m        at findSupporterByStripeId (/mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/processors/stripe.processor.ts:554:24)[39m
+[31m        at processTicksAndRejections (node:internal/process/task_queues:105:5)[39m
+[31m        at handleInvoicePaymentSucceeded (/mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/processors/stripe.processor.ts:281:21)[39m
+[31m        at processStripeMessage (/mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/processors/stripe.processor.ts:132:7)[39m
+[31m        at handler (/mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/processors/stripe.processor.ts:100:7)[39m
+[31m        at Object.<anonymous> (/mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/processors/stripe.processor.test.ts:490:7)[39m
+[2m[22m
+[2m    [0m [90m 100 |[39m       [36mawait[39m processStripeMessage(record)[33m;[39m[22m
+[2m     [90m 101 |[39m     } [36mcatch[39m (error) {[22m
+[2m    [31m[1m>[22m[2m[39m[90m 102 |[39m       console[33m.[39merror([32m'Error processing Stripe message:'[39m[33m,[39m error)[33m;[39m[22m
+[2m     [90m     |[39m               [31m[1m^[22m[2m[39m[22m
+[2m     [90m 103 |[39m       [90m// Re-throw to trigger DLQ[39m[22m
+[2m     [90m 104 |[39m       [36mthrow[39m error[33m;[39m[22m
+[2m     [90m 105 |[39m     }[0m[22m
+[2m[22m
+[2m      [2mat handler ([22m[2msrc/handlers/processors/stripe.processor.ts[2m:102:15)[22m[2m[22m
+[2m      [2mat Object.<anonymous> ([22m[2m[0m[36msrc/handlers/processors/stripe.processor.test.ts[39m[0m[2m:490:7)[22m[2m[22m
+
+  [2m[31mconsole.error[39m[22m
+[31m    Error processing Stripe message: TypeError: Cannot read properties of undefined (reading 'results')[39m
+[31m        at findSupporterByStripeId (/mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/processors/stripe.processor.ts:554:24)[39m
+[31m        at processTicksAndRejections (node:internal/process/task_queues:105:5)[39m
+[31m        at handleInvoicePaymentSucceeded (/mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/processors/stripe.processor.ts:281:21)[39m
+[31m        at processStripeMessage (/mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/processors/stripe.processor.ts:132:7)[39m
+[31m        at handler (/mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/processors/stripe.processor.ts:100:7)[39m
+[31m        at Object.<anonymous> (/mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/processors/stripe.processor.test.ts:517:7)[39m
+[2m[22m
+[2m    [0m [90m 100 |[39m       [36mawait[39m processStripeMessage(record)[33m;[39m[22m
+[2m     [90m 101 |[39m     } [36mcatch[39m (error) {[22m
+[2m    [31m[1m>[22m[2m[39m[90m 102 |[39m       console[33m.[39merror([32m'Error processing Stripe message:'[39m[33m,[39m error)[33m;[39m[22m
+[2m     [90m     |[39m               [31m[1m^[22m[2m[39m[22m
+[2m     [90m 103 |[39m       [90m// Re-throw to trigger DLQ[39m[22m
+[2m     [90m 104 |[39m       [36mthrow[39m error[33m;[39m[22m
+[2m     [90m 105 |[39m     }[0m[22m
+[2m[22m
+[2m      [2mat handler ([22m[2msrc/handlers/processors/stripe.processor.ts[2m:102:15)[22m[2m[22m
+[2m      [2mat Object.<anonymous> ([22m[2m[0m[36msrc/handlers/processors/stripe.processor.test.ts[39m[0m[2m:517:7)[22m[2m[22m
+
+  [2m[31mconsole.error[39m[22m
+[31m    Error processing Stripe message: TypeError: Cannot read properties of undefined (reading 'results')[39m
+[31m        at findSupporterByStripeId (/mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/processors/stripe.processor.ts:554:24)[39m
+[31m        at processTicksAndRejections (node:internal/process/task_queues:105:5)[39m
+[31m        at handleInvoicePaymentFailed (/mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/processors/stripe.processor.ts:339:21)[39m
+[31m        at processStripeMessage (/mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/processors/stripe.processor.ts:136:7)[39m
+[31m        at handler (/mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/processors/stripe.processor.ts:100:7)[39m
+[31m        at Object.<anonymous> (/mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/processors/stripe.processor.test.ts:561:7)[39m
+[2m[22m
+[2m    [0m [90m 100 |[39m       [36mawait[39m processStripeMessage(record)[33m;[39m[22m
+[2m     [90m 101 |[39m     } [36mcatch[39m (error) {[22m
+[2m    [31m[1m>[22m[2m[39m[90m 102 |[39m       console[33m.[39merror([32m'Error processing Stripe message:'[39m[33m,[39m error)[33m;[39m[22m
+[2m     [90m     |[39m               [31m[1m^[22m[2m[39m[22m
+[2m     [90m 103 |[39m       [90m// Re-throw to trigger DLQ[39m[22m
+[2m     [90m 104 |[39m       [36mthrow[39m error[33m;[39m[22m
+[2m     [90m 105 |[39m     }[0m[22m
+[2m[22m
+[2m      [2mat handler ([22m[2msrc/handlers/processors/stripe.processor.ts[2m:102:15)[22m[2m[22m
+[2m      [2mat Object.<anonymous> ([22m[2m[0m[36msrc/handlers/processors/stripe.processor.test.ts[39m[0m[2m:561:7)[22m[2m[22m
+
+  [2m[31mconsole.error[39m[22m
+[31m    Error processing Stripe message: TypeError: Cannot read properties of undefined (reading 'results')[39m
+[31m        at findSupporterByStripeId (/mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/processors/stripe.processor.ts:554:24)[39m
+[31m        at processTicksAndRejections (node:internal/process/task_queues:105:5)[39m
+[31m        at handleInvoicePaymentFailed (/mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/processors/stripe.processor.ts:339:21)[39m
+[31m        at processStripeMessage (/mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/processors/stripe.processor.ts:136:7)[39m
+[31m        at handler (/mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/processors/stripe.processor.ts:100:7)[39m
+[31m        at Object.<anonymous> (/mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/processors/stripe.processor.test.ts:593:7)[39m
+[2m[22m
+[2m    [0m [90m 100 |[39m       [36mawait[39m processStripeMessage(record)[33m;[39m[22m
+[2m     [90m 101 |[39m     } [36mcatch[39m (error) {[22m
+[2m    [31m[1m>[22m[2m[39m[90m 102 |[39m       console[33m.[39merror([32m'Error processing Stripe message:'[39m[33m,[39m error)[33m;[39m[22m
+[2m     [90m     |[39m               [31m[1m^[22m[2m[39m[22m
+[2m     [90m 103 |[39m       [90m// Re-throw to trigger DLQ[39m[22m
+[2m     [90m 104 |[39m       [36mthrow[39m error[33m;[39m[22m
+[2m     [90m 105 |[39m     }[0m[22m
+[2m[22m
+[2m      [2mat handler ([22m[2msrc/handlers/processors/stripe.processor.ts[2m:102:15)[22m[2m[22m
+[2m      [2mat Object.<anonymous> ([22m[2m[0m[36msrc/handlers/processors/stripe.processor.test.ts[39m[0m[2m:593:7)[22m[2m[22m
+
+  [2m[31mconsole.error[39m[22m
+[31m    Error processing Stripe message: TypeError: Cannot read properties of undefined (reading 'results')[39m
+[31m        at findSupporterByStripeId (/mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/processors/stripe.processor.ts:554:24)[39m
+[31m        at processTicksAndRejections (node:internal/process/task_queues:105:5)[39m
+[31m        at handleInvoicePaymentFailed (/mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/processors/stripe.processor.ts:339:21)[39m
+[31m        at processStripeMessage (/mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/processors/stripe.processor.ts:136:7)[39m
+[31m        at handler (/mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/processors/stripe.processor.ts:100:7)[39m
+[31m        at Object.<anonymous> (/mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/processors/stripe.processor.test.ts:631:7)[39m
+[2m[22m
+[2m    [0m [90m 100 |[39m       [36mawait[39m processStripeMessage(record)[33m;[39m[22m
+[2m     [90m 101 |[39m     } [36mcatch[39m (error) {[22m
+[2m    [31m[1m>[22m[2m[39m[90m 102 |[39m       console[33m.[39merror([32m'Error processing Stripe message:'[39m[33m,[39m error)[33m;[39m[22m
+[2m     [90m     |[39m               [31m[1m^[22m[2m[39m[22m
+[2m     [90m 103 |[39m       [90m// Re-throw to trigger DLQ[39m[22m
+[2m     [90m 104 |[39m       [36mthrow[39m error[33m;[39m[22m
+[2m     [90m 105 |[39m     }[0m[22m
+[2m[22m
+[2m      [2mat handler ([22m[2msrc/handlers/processors/stripe.processor.ts[2m:102:15)[22m[2m[22m
+[2m      [2mat Object.<anonymous> ([22m[2m[0m[36msrc/handlers/processors/stripe.processor.test.ts[39m[0m[2m:631:7)[22m[2m[22m
+
+  [2m[31mconsole.error[39m[22m
+[31m    Error processing Stripe message: TypeError: Cannot read properties of undefined (reading 'length')[39m
+[31m        at findOrCreateSupporterFromPayment (/mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/processors/stripe.processor.ts:488:20)[39m
+[31m        at processTicksAndRejections (node:internal/process/task_queues:105:5)[39m
+[31m        at handlePaymentIntentSucceeded (/mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/processors/stripe.processor.ts:168:21)[39m
+[31m        at processStripeMessage (/mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/processors/stripe.processor.ts:124:7)[39m
+[31m        at handler (/mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/processors/stripe.processor.ts:100:7)[39m
+[31m        at Object.<anonymous> (/mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/processors/stripe.processor.test.ts:852:7)[39m
+[2m[22m
+[2m    [0m [90m 100 |[39m       [36mawait[39m processStripeMessage(record)[33m;[39m[22m
+[2m     [90m 101 |[39m     } [36mcatch[39m (error) {[22m
+[2m    [31m[1m>[22m[2m[39m[90m 102 |[39m       console[33m.[39merror([32m'Error processing Stripe message:'[39m[33m,[39m error)[33m;[39m[22m
+[2m     [90m     |[39m               [31m[1m^[22m[2m[39m[22m
+[2m     [90m 103 |[39m       [90m// Re-throw to trigger DLQ[39m[22m
+[2m     [90m 104 |[39m       [36mthrow[39m error[33m;[39m[22m
+[2m     [90m 105 |[39m     }[0m[22m
+[2m[22m
+[2m      [2mat handler ([22m[2msrc/handlers/processors/stripe.processor.ts[2m:102:15)[22m[2m[22m
+[2m      [2mat Object.<anonymous> ([22m[2m[0m[36msrc/handlers/processors/stripe.processor.test.ts[39m[0m[2m:852:7)[22m[2m[22m
+
+  [2m[31mconsole.error[39m[22m
+[31m    Error processing Stripe message: TypeError: Cannot read properties of undefined (reading 'results')[39m
+[31m        at findSupporterByStripeId (/mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/processors/stripe.processor.ts:554:24)[39m
+[31m        at processTicksAndRejections (node:internal/process/task_queues:105:5)[39m
+[31m        at findOrCreateSupporterFromPayment (/mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/processors/stripe.processor.ts:517:23)[39m
+[31m        at handleChargeSucceeded (/mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/processors/stripe.processor.ts:226:21)[39m
+[31m        at processStripeMessage (/mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/processors/stripe.processor.ts:128:7)[39m
+[31m        at handler (/mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/processors/stripe.processor.ts:100:7)[39m
+[31m        at Object.<anonymous> (/mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/processors/stripe.processor.test.ts:881:7)[39m
+[2m[22m
+[2m    [0m [90m 100 |[39m       [36mawait[39m processStripeMessage(record)[33m;[39m[22m
+[2m     [90m 101 |[39m     } [36mcatch[39m (error) {[22m
+[2m    [31m[1m>[22m[2m[39m[90m 102 |[39m       console[33m.[39merror([32m'Error processing Stripe message:'[39m[33m,[39m error)[33m;[39m[22m
+[2m     [90m     |[39m               [31m[1m^[22m[2m[39m[22m
+[2m     [90m 103 |[39m       [90m// Re-throw to trigger DLQ[39m[22m
+[2m     [90m 104 |[39m       [36mthrow[39m error[33m;[39m[22m
+[2m     [90m 105 |[39m     }[0m[22m
+[2m[22m
+[2m      [2mat handler ([22m[2msrc/handlers/processors/stripe.processor.ts[2m:102:15)[22m[2m[22m
+[2m      [2mat Object.<anonymous> ([22m[2m[0m[36msrc/handlers/processors/stripe.processor.test.ts[39m[0m[2m:881:7)[22m[2m[22m
+
+  [2m[31mconsole.error[39m[22m
+[31m    Error processing Stripe message: TypeError: Cannot read properties of undefined (reading 'results')[39m
+[31m        at findSupporterByStripeId (/mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/processors/stripe.processor.ts:554:24)[39m
+[31m        at processTicksAndRejections (node:internal/process/task_queues:105:5)[39m
+[31m        at handleInvoicePaymentSucceeded (/mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/processors/stripe.processor.ts:281:21)[39m
+[31m        at processStripeMessage (/mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/processors/stripe.processor.ts:132:7)[39m
+[31m        at handler (/mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/processors/stripe.processor.ts:100:7)[39m
+[31m        at Object.<anonymous> (/mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/processors/stripe.processor.test.ts:911:7)[39m
+[2m[22m
+[2m    [0m [90m 100 |[39m       [36mawait[39m processStripeMessage(record)[33m;[39m[22m
+[2m     [90m 101 |[39m     } [36mcatch[39m (error) {[22m
+[2m    [31m[1m>[22m[2m[39m[90m 102 |[39m       console[33m.[39merror([32m'Error processing Stripe message:'[39m[33m,[39m error)[33m;[39m[22m
+[2m     [90m     |[39m               [31m[1m^[22m[2m[39m[22m
+[2m     [90m 103 |[39m       [90m// Re-throw to trigger DLQ[39m[22m
+[2m     [90m 104 |[39m       [36mthrow[39m error[33m;[39m[22m
+[2m     [90m 105 |[39m     }[0m[22m
+[2m[22m
+[2m      [2mat handler ([22m[2msrc/handlers/processors/stripe.processor.ts[2m:102:15)[22m[2m[22m
+[2m      [2mat Object.<anonymous> ([22m[2m[0m[36msrc/handlers/processors/stripe.processor.test.ts[39m[0m[2m:911:7)[22m[2m[22m
+
+  [2m[31mconsole.error[39m[22m
+[31m    Error processing Stripe message: TypeError: Cannot read properties of undefined (reading 'length')[39m
+[31m        at findOrCreateSupporterFromPayment (/mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/processors/stripe.processor.ts:488:20)[39m
+[31m        at processTicksAndRejections (node:internal/process/task_queues:105:5)[39m
+[31m        at handlePaymentIntentSucceeded (/mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/processors/stripe.processor.ts:168:21)[39m
+[31m        at processStripeMessage (/mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/processors/stripe.processor.ts:124:7)[39m
+[31m        at handler (/mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/processors/stripe.processor.ts:100:7)[39m
+[31m        at Object.<anonymous> (/mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/processors/stripe.processor.test.ts:945:7)[39m
+[2m[22m
+[2m    [0m [90m 100 |[39m       [36mawait[39m processStripeMessage(record)[33m;[39m[22m
+[2m     [90m 101 |[39m     } [36mcatch[39m (error) {[22m
+[2m    [31m[1m>[22m[2m[39m[90m 102 |[39m       console[33m.[39merror([32m'Error processing Stripe message:'[39m[33m,[39m error)[33m;[39m[22m
+[2m     [90m     |[39m               [31m[1m^[22m[2m[39m[22m
+[2m     [90m 103 |[39m       [90m// Re-throw to trigger DLQ[39m[22m
+[2m     [90m 104 |[39m       [36mthrow[39m error[33m;[39m[22m
+[2m     [90m 105 |[39m     }[0m[22m
+[2m[22m
+[2m      [2mat handler ([22m[2msrc/handlers/processors/stripe.processor.ts[2m:102:15)[22m[2m[22m
+[2m      [2mat Object.<anonymous> ([22m[2m[0m[36msrc/handlers/processors/stripe.processor.test.ts[39m[0m[2m:945:7)[22m[2m[22m
+
+  [2m[31mconsole.error[39m[22m
+[31m    Error processing Stripe message: TypeError: Cannot read properties of undefined (reading 'results')[39m
+[31m        at findSupporterByStripeId (/mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/processors/stripe.processor.ts:554:24)[39m
+[31m        at processTicksAndRejections (node:internal/process/task_queues:105:5)[39m
+[31m        at findOrCreateSupporterFromPayment (/mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/processors/stripe.processor.ts:517:23)[39m
+[31m        at handleChargeSucceeded (/mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/processors/stripe.processor.ts:226:21)[39m
+[31m        at processStripeMessage (/mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/processors/stripe.processor.ts:128:7)[39m
+[31m        at handler (/mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/processors/stripe.processor.ts:100:7)[39m
+[31m        at Object.<anonymous> (/mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/processors/stripe.processor.test.ts:1024:7)[39m
+[2m[22m
+[2m    [0m [90m 100 |[39m       [36mawait[39m processStripeMessage(record)[33m;[39m[22m
+[2m     [90m 101 |[39m     } [36mcatch[39m (error) {[22m
+[2m    [31m[1m>[22m[2m[39m[90m 102 |[39m       console[33m.[39merror([32m'Error processing Stripe message:'[39m[33m,[39m error)[33m;[39m[22m
+[2m     [90m     |[39m               [31m[1m^[22m[2m[39m[22m
+[2m     [90m 103 |[39m       [90m// Re-throw to trigger DLQ[39m[22m
+[2m     [90m 104 |[39m       [36mthrow[39m error[33m;[39m[22m
+[2m     [90m 105 |[39m     }[0m[22m
+[2m[22m
+[2m      [2mat handler ([22m[2msrc/handlers/processors/stripe.processor.ts[2m:102:15)[22m[2m[22m
+[2m      [2mat Object.<anonymous> ([22m[2m[0m[36msrc/handlers/processors/stripe.processor.test.ts[39m[0m[2m:1024:7)[22m[2m[22m
+
+  [2m[31mconsole.error[39m[22m
+[31m    Merge error: Error: Database error[39m
+[31m        at Object.<anonymous> (/mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/api/admin/merge.handler.test.ts:373:46)[39m
+[31m        at Promise.then.completed (/mnt/c/dev/srfc/supporter/supporter-360/node_modules/jest-circus/build/utils.js:298:28)[39m
+[31m        at new Promise (<anonymous>)[39m
+[31m        at callAsyncCircusFn (/mnt/c/dev/srfc/supporter/supporter-360/node_modules/jest-circus/build/utils.js:231:10)[39m
+[31m        at _callCircusTest (/mnt/c/dev/srfc/supporter/supporter-360/node_modules/jest-circus/build/run.js:316:40)[39m
+[31m        at processTicksAndRejections (node:internal/process/task_queues:105:5)[39m
+[31m        at _runTest (/mnt/c/dev/srfc/supporter/supporter-360/node_modules/jest-circus/build/run.js:252:3)[39m
+[31m        at _runTestsForDescribeBlock (/mnt/c/dev/srfc/supporter/supporter-360/node_modules/jest-circus/build/run.js:126:9)[39m
+[31m        at _runTestsForDescribeBlock (/mnt/c/dev/srfc/supporter/supporter-360/node_modules/jest-circus/build/run.js:121:9)[39m
+[31m        at _runTestsForDescribeBlock (/mnt/c/dev/srfc/supporter/supporter-360/node_modules/jest-circus/build/run.js:121:9)[39m
+[31m        at run (/mnt/c/dev/srfc/supporter/supporter-360/node_modules/jest-circus/build/run.js:71:3)[39m
+[31m        at runAndTransformResultsToJestFormat (/mnt/c/dev/srfc/supporter/supporter-360/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapterInit.js:122:21)[39m
+[31m        at jestAdapter (/mnt/c/dev/srfc/supporter/supporter-360/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapter.js:79:19)[39m
+[31m        at runTestInternal (/mnt/c/dev/srfc/supporter/supporter-360/node_modules/jest-runner/build/runTest.js:367:16)[39m
+[31m        at runTest (/mnt/c/dev/srfc/supporter/supporter-360/node_modules/jest-runner/build/runTest.js:444:34)[39m
+[31m        at Object.worker (/mnt/c/dev/srfc/supporter/supporter-360/node_modules/jest-runner/build/testWorker.js:106:12)[39m
+[2m[22m
+[2m    [0m [90m 144 |[39m     }[22m
+[2m     [90m 145 |[39m[22m
+[2m    [31m[1m>[22m[2m[39m[90m 146 |[39m     console[33m.[39merror([32m'Merge error:'[39m[33m,[39m error)[33m;[39m[22m
+[2m     [90m     |[39m             [31m[1m^[22m[2m[39m[22m
+[2m     [90m 147 |[39m     [36mreturn[39m errorResponse([22m
+[2m     [90m 148 |[39m       [32m'Failed to merge supporters'[39m[33m,[39m[22m
+[2m     [90m 149 |[39m       [35m500[39m[33m,[39m[0m[22m
+[2m[22m
+[2m      [2mat [22m[2msrc/handlers/api/admin/merge.handler.ts[2m:146:13[22m[2m[22m
+
+  [2m[31mconsole.error[39m[22m
+[31m    Merge error: Error: Merge failed[39m
+[31m        at Object.<anonymous> (/mnt/c/dev/srfc/supporter/supporter-360/packages/backend/src/handlers/api/admin/merge.handler.test.ts:439:46)[39m
+[31m        at Promise.then.completed (/mnt/c/dev/srfc/supporter/supporter-360/node_modules/jest-circus/build/utils.js:298:28)[39m
+[31m        at new Promise (<anonymous>)[39m
+[31m        at callAsyncCircusFn (/mnt/c/dev/srfc/supporter/supporter-360/node_modules/jest-circus/build/utils.js:231:10)[39m
+[31m        at _callCircusTest (/mnt/c/dev/srfc/supporter/supporter-360/node_modules/jest-circus/build/run.js:316:40)[39m
+[31m        at processTicksAndRejections (node:internal/process/task_queues:105:5)[39m
+[31m        at _runTest (/mnt/c/dev/srfc/supporter/supporter-360/node_modules/jest-circus/build/run.js:252:3)[39m
+[31m        at _runTestsForDescribeBlock (/mnt/c/dev/srfc/supporter/supporter-360/node_modules/jest-circus/build/run.js:126:9)[39m
+[31m        at _runTestsForDescribeBlock (/mnt/c/dev/srfc/supporter/supporter-360/node_modules/jest-circus/build/run.js:121:9)[39m
+[31m        at _runTestsForDescribeBlock (/mnt/c/dev/srfc/supporter/supporter-360/node_modules/jest-circus/build/run.js:121:9)[39m
+[31m        at run (/mnt/c/dev/srfc/supporter/supporter-360/node_modules/jest-circus/build/run.js:71:3)[39m
+[31m        at runAndTransformResultsToJestFormat (/mnt/c/dev/srfc/supporter/supporter-360/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapterInit.js:122:21)[39m
+[31m        at jestAdapter (/mnt/c/dev/srfc/supporter/supporter-360/node_modules/jest-circus/build/legacy-code-todo-rewrite/jestAdapter.js:79:19)[39m
+[31m        at runTestInternal (/mnt/c/dev/srfc/supporter/supporter-360/node_modules/jest-runner/build/runTest.js:367:16)[39m
+[31m        at runTest (/mnt/c/dev/srfc/supporter/supporter-360/node_modules/jest-runner/build/runTest.js:444:34)[39m
+[31m        at Object.worker (/mnt/c/dev/srfc/supporter/supporter-360/node_modules/jest-runner/build/testWorker.js:106:12)[39m
+[2m[22m
+[2m    [0m [90m 144 |[39m     }[22m
+[2m     [90m 145 |[39m[22m
+[2m    [31m[1m>[22m[2m[39m[90m 146 |[39m     console[33m.[39merror([32m'Merge error:'[39m[33m,[39m error)[33m;[39m[22m
+[2m     [90m     |[39m             [31m[1m^[22m[2m[39m[22m
+[2m     [90m 147 |[39m     [36mreturn[39m errorResponse([22m
+[2m     [90m 148 |[39m       [32m'Failed to merge supporters'[39m[33m,[39m[22m
+[2m     [90m 149 |[39m       [35m500[39m[33m,[39m[0m[22m
+[2m[22m
+[2m      [2mat [22m[2msrc/handlers/api/admin/merge.handler.ts[2m:146:13[22m[2m[22m
+
