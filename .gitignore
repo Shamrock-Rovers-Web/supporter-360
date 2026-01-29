@@ -46,3 +46,17 @@ coverage/
 # Temporary files
 tmp/
 temp/
+
+# Agent/automation documentation (auto-generated)
+.agent-mail/
+Auto Run Docs/
+
+# Large reference docs (use external links instead)
+ft.md
+
+# Test scripts in root (use npm test instead)
+test-*.mjs
+
+# Security/audit docs (can be regenerated)
+SECURITY-REMEDIATION*.md
+GIT-COMMIT-REVIEW.md
