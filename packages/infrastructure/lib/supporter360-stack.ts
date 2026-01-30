@@ -578,6 +578,22 @@ export class Supporter360Stack extends cdk.Stack {
 
     const mailchimpResource = webhooksResource.addResource('mailchimp');
     mailchimpResource.addMethod('POST', new apigateway.LambdaIntegration(mailchimpWebhookHandler));
+    // Add GET method for Mailchimp webhook validation (returns 200 OK)
+    mailchimpResource.addMethod('GET', new apigateway.MockIntegration({
+      integrationResponses: [{
+        statusCode: '200',
+      }],
+      requestTemplates: {
+        'application/json': '{ "statusCode": 200 }',
+      },
+    }), {
+      methodResponses: [{
+        statusCode: '200',
+        responseParameters: {
+          'method.response.header.Content-Type': true,
+        },
+      }],
+    });
 
     // API endpoints
     const searchResource = api.root.addResource('search');
