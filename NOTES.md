@@ -1,6 +1,39 @@
 # Supporter 360 - Current Status Notes
 
-## Date: 2026-01-29 - E2E Tests Added, Webhook Signature Issue Identified 🔍
+## Date: 2026-01-30 - Webhooks Configured! ✅
+
+### Today's Fixes
+1. **Added GET method to Mailchimp webhook** - Required for Mailchimp's webhook validation
+2. **Updated Stripe webhook secret** - `whsec_jPjngZOrkzLkvv3Lo2zK0Hrd3REZMZZ4`
+3. **Updated GoCardless webhook secret** - `s360_gc_prod_8x92m4k` (padded to 40 chars)
+
+### Webhook Status - ALL CONFIGURED! ✅
+| Integration | Method | Signature | Status |
+|-------------|--------|-----------|--------|
+| **Shopify** | EventBridge | N/A | ✅ Live (partner event bus) |
+| **Stripe** | HTTP Webhook | ✅ Configured | ✅ Ready for webhooks |
+| **GoCardless** | HTTP Webhook | ✅ Configured | ✅ Ready for webhooks |
+| **Mailchimp** | HTTP Webhook | ⚠️ Pending | ✅ Validation working |
+| **Future Ticketing** | Polling (5min) | N/A | ✅ Live and importing |
+
+### Webhook URLs (for reference)
+```
+Stripe:     https://2u9a7una05.execute-api.eu-west-1.amazonaws.com/prod/webhooks/stripe
+GoCardless: https://2u9a7una05.execute-api.eu-west-1.amazonaws.com/prod/webhooks/gocardless
+Mailchimp:  https://2u9a7una05.execute-api.eu-west-1.amazonaws.com/prod/webhooks/mailchimp
+```
+
+### Testing Results
+```bash
+✅ GET /webhooks/mailchimp → 200 OK (validation works)
+✅ POST /webhooks/mailchimp → 202 Accepted (processing works)
+✅ POST /webhooks/stripe → Accepting requests with signature verification
+✅ POST /webhooks/gocardless → Accepting requests with signature verification
+```
+
+### Still Needed
+- **Mailchimp webhook signing secret** - Get from Mailchimp Audience → Settings → Webhooks
+- **Configure webhooks in external dashboards** if not already done
 
 ### Today's Accomplishments
 1. **Cleaned up repository** - Removed 8 redundant files (10K+ lines)
