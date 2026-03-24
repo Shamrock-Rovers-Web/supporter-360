@@ -151,8 +151,9 @@ START
 3. **Export data from Serverless v2:**
    ```bash
    # Get database credentials
+   # NOTE: The secret name is just 'postgres', NOT 'supporter360-supporter360-postgres'
    DB_SECRET=$(aws secretsmanager get-secret-value \
-     --secret-id supporter360-supporter360-postgres \
+     --secret-id postgres \
      --query SecretString --output text)
 
    DB_HOST=$(echo $DB_SECRET | jq -r '.host')
@@ -168,28 +169,41 @@ START
 
 1. **Create new t4g.medium instance:**
    ```bash
-   # Modify RDS instance to t4g.medium
-   aws rds modify-db-instance \
-     --db-instance-identifier supporter360-database \
-     --db-instance-class db.t4g.medium \
-     --storage-type gp2 \
-     --allocated-storage 100 \
-     --no-multi-az \
-     --no-auto-minor-version-upgrade \
-     --apply-immediately
+   # IMPORTANT: RDS Serverless v2 doesn't support modify-db-instance to change instance type
+   # To rollback from Serverless v2 to t4g.medium, you must create a new instance
 
-   # Wait for modification to complete
-   aws rds wait db-instance-available \
-     --db-instance-identifier supporter360-database
+   # Step 1: Export data from Serverless v2 (already done in prerequisites)
+   # Step 2: Create new t4g.medium instance using AWS Console or CloudFormation
+   # Step 3: Import data to t4g.medium (see step 2 below)
+   # Step 4: Update CDK stack to use DatabaseInstance with instanceType: t4g.medium
+
+   # Option A: Use AWS Console to create new t4g.medium instance
+   # 1. Go to RDS Console → Create database
+   # 2. Select PostgreSQL 15.4, db.t4g.medium, 100GB gp2 storage
+   # 3. Use same VPC and security groups as Serverless v2 instance
+   # 4. Set password to match current instance
+
+   # Option B: Update CDK stack and deploy (see step 3 below)
+
+   # Wait for new instance to be available
+   # aws rds wait db-instance-available \
+   #   --db-instance-identifier supporter360-database-t4g
    ```
 
 2. **Import data to t4g.medium:**
    ```bash
+   # Get new t4g.medium endpoint
+   # Update DB_HOST to point to new t4g.medium instance
+   DB_HOST_T4G=$(aws rds describe-db-instances \
+     --db-instance-identifier supporter360-database-t4g \
+     --query 'DBInstances[0].Endpoint.Address' \
+     --output text)
+
    # Wait for instance to be fully available
    sleep 300
 
    # Restore from export
-   pg_restore -h $DB_HOST -U $DB_USER -d supporter360 \
+   pg_restore -h $DB_HOST_T4G -U $DB_USER -d supporter360 \
      -j 4 --clean --if-exists \
      supporter360-export-$(date +%Y%m%d).dump
    ```
@@ -345,14 +359,13 @@ START
    In `supporter360-stack.ts`, replace VPC endpoint configuration with:
    ```typescript
    // NAT Gateway configuration
-   const natGatewayProvider = ec2.NatProvider.gateway({
-     type: ec2.NatInstanceType.T3_MICRO
-   });
-
+   // CORRECT SYNTAX: Use natGateways parameter, not NatProvider.gateway()
    const vpc = new ec2.Vpc(this, 'VPC', {
      cidr: '10.0.0.0/16',
      maxAzs: 2,
-     natGateways: 1,
+     natGateways: 1,  // This creates NAT Gateways (correct syntax)
+     // OR for specific subnet configuration:
+     // natGatewaySubnets: { subnetType: ec2.SubnetType.PUBLIC }
      subnetConfiguration: [
        {
          cidrMask: 24,
@@ -710,9 +723,152 @@ START
 
 ---
 
+### Rollback Public Subnet Changes
+
+**Time Estimate:** 15-30 minutes
+**Risk Level:** LOW (subnet configuration only)
+**Downtime:** 5-10 minutes
+
+#### Trigger Conditions
+
+- Mailchimp syncer or GoCardless processor in public subnets causing issues
+- Security concerns about public subnet exposure
+- Connectivity problems with external APIs from public subnets
+- Need to return to private subnets with NAT Gateway
+
+#### Prerequisites
+
+1. **Document current Lambda subnet configurations:**
+   ```bash
+   # Get all Lambda functions
+   FUNCTIONS=$(aws lambda list-functions \
+     --query 'Functions[?contains(FunctionName, `Supporter360Stack`)].FunctionName' \
+     --output text)
+
+   # Document current subnet configurations
+   for FUNC in $FUNCTIONS; do
+     echo "Function: $FUNC"
+     aws lambda get-function-configuration \
+       --function-name $FUNC \
+       --query 'VpcConfig.{Subnets:SubnetIds,SecurityGroups:SecurityGroupIds}'
+   done
+   ```
+
+2. **Verify NAT Gateway exists:**
+   ```bash
+   aws ec2 describe-nat-gateways \
+     --filters Name=state,Values=available \
+     --query 'NatGateways[].NatGatewayId'
+   ```
+
+#### Step-by-Step Rollback
+
+1. **Update CDK stack subnet configuration:**
+   ```bash
+   cd packages/infrastructure
+
+   # Edit supporter360-stack.ts
+   # Move functions from public to private subnets
+   ```
+
+   In `supporter360-stack.ts`, update Lambda function configurations:
+   ```typescript
+   // Move these functions from PUBLIC to PRIVATE_WITH_NAT subnets
+   const mailchimpSyncer = new lambda.Function(this, 'MailchimpSyncer', {
+     runtime: lambda.Runtime.NODEJS_18_X,
+     handler: 'mailchimp-syncer.handler',
+     code: lambda.Code.fromAsset('../backend/dist/handlers/cron'),
+     vpc: vpc,
+     vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_NAT },  // Changed from PUBLIC
+     environment: {
+       // ... existing environment variables
+     }
+   });
+
+   const gocardlessProcessor = new lambda.Function(this, 'GoCardlessProcessor', {
+     runtime: lambda.Runtime.NODEJS_18_X,
+     handler: 'gocardless-processor.handler',
+     code: lambda.Code.fromAsset('../backend/dist/handlers/processors'),
+     vpc: vpc,
+     vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_NAT },  // Changed from PUBLIC
+     environment: {
+       // ... existing environment variables
+     }
+   });
+   ```
+
+2. **Deploy updated stack:**
+   ```bash
+   # Build and deploy
+   npm run build
+   cdk diff  # Review changes
+   cdk deploy --require-approval never
+   ```
+
+3. **Verify subnet changes:**
+   ```bash
+   # Verify functions are now in private subnets
+   for FUNC in "MailchimpSyncer" "GoCardlessProcessor"; do
+     echo "Checking $FUNC..."
+     aws lambda get-function-configuration \
+       --function-name Supporter360Stack-$FUNC \
+       --query 'VpcConfig.SubnetIds'
+   done
+   ```
+
+#### Verification Steps
+
+1. **Test Mailchimp syncer connectivity:**
+   ```bash
+   # Invoke Mailchimp syncer
+   aws lambda invoke \
+     --function-name Supporter360Stack-MailchimpSyncer \
+     --payload '{"test": "connectivity"}' \
+     response.json
+
+   cat response.json
+   # Expected: Successful execution through NAT Gateway
+   ```
+
+2. **Test GoCardless processor connectivity:**
+   ```bash
+   # Invoke GoCardless processor
+   aws lambda invoke \
+     --function-name Supporter360Stack-GoCardlessProcessor \
+     --payload '{"test": "connectivity"}' \
+     response.json
+
+   cat response.json
+   # Expected: Successful execution through NAT Gateway
+   ```
+
+3. **Monitor NAT Gateway metrics:**
+   ```bash
+   # Check NAT Gateway traffic
+   aws cloudwatch get-metric-statistics \
+     --namespace AWS/NATGateway \
+     --metric-name BytesOutToDestination \
+     --dimensions Name=NatGatewayId,Value=nat-xxxxx \
+     --start-time $(date -u -d '10 minutes ago' --iso-8601) \
+     --end-time $(date -u --iso-8601) \
+     --period 300 \
+     --statistics Sum
+   ```
+
+4. **Verify security:**
+   ```bash
+   # Ensure functions are no longer directly accessible from internet
+   # Check security groups - should not allow inbound from 0.0.0.0/0
+   aws ec2 describe-security-groups \
+     --group-ids sg-xxxxx \
+     --query 'SecurityGroups[0].IpPermissions'
+   ```
+
+---
+
 ### Full Stack Rollback
 
-**Time Estimate:** 1-2 hours
+**Time Estimate:** 2-4 hours (updated from 1-2 hours - Serverless v2 migration is more complex than anticipated)
 **Risk Level:** CRITICAL
 **Downtime:** 30-60 minutes
 
