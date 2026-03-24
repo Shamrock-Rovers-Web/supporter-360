@@ -14,11 +14,23 @@ import * as sns from 'aws-cdk-lib/aws-sns';
 import * as subscriptions from 'aws-cdk-lib/aws-sns-subscriptions';
 import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
 import * as cloudwatchActions from 'aws-cdk-lib/aws-cloudwatch-actions';
+import * as waf from 'aws-cdk-lib/aws-wafv2';
 import { Construct } from 'constructs';
+import * as tags from 'aws-cdk-lib';
 
 export class Supporter360Stack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
-    super(scope, id, props);
+    super(scope, id, {
+      stackName: 'Supporter360StackV2',
+      description: 'Supporter 360 V2 - Serverless architecture with public subnets for external API callers',
+      ...props
+    });
+
+    // Apply stack-level tags that propagate to all resources
+    tags.Tags.of(this).add('app', 'supporter360');
+    tags.Tags.of(this).add('owner', 'gleesonb@gmail.com');
+    tags.Tags.of(this).add('environment', 'production');
+    tags.Tags.of(this).add('managed-by', 'cdk');
 
     const vpc = new ec2.Vpc(this, 'Supporter360Vpc', {
       maxAzs: 2,
@@ -65,13 +77,12 @@ export class Supporter360Stack extends cdk.Stack {
     });
 
     // RDS Aurora Serverless v2 cluster for cost optimization
-    // Note: Using standard Aurora Serverless v1 until CDK v2.114.0 Serverless v2 support is verified
-    // To migrate to Serverless v2: upgrade CDK to v2.120+ and use serverlessV2Scaling property
+    // Using Serverless v2 with ACU (Aurora Capacity Unit) scaling for cost efficiency
     const database = new rds.DatabaseCluster(this, 'Supporter360Database', {
       engine: rds.DatabaseClusterEngine.auroraPostgres({
-        version: rds.AuroraPostgresEngineVersion.VER_15_4,
+        version: rds.AuroraPostgresEngineVersion.VER_14_15,
       }),
-      instances: 1, // Single writer instance
+      vpc,
       vpcSubnets: {
         subnetType: ec2.SubnetType.PRIVATE_ISOLATED,
       },
@@ -82,10 +93,13 @@ export class Supporter360Stack extends cdk.Stack {
       backup: {
         retention: cdk.Duration.days(7),
       },
-      instanceProps: {
-        vpc,
-        instanceType: ec2.InstanceType.of(ec2.InstanceClass.BURSTABLE3, ec2.InstanceSize.MEDIUM),
-      },
+      // Serverless v2 configuration with writer
+      writer: rds.ClusterInstance.serverlessV2('Writer', {
+        scaleWithWriter: true,
+      }),
+      // Serverless v2 capacity limits
+      serverlessV2MinCapacity: 0.5,  // Minimum 0.5 ACU (~$25/month)
+      serverlessV2MaxCapacity: 1,     // Maximum 1 ACU
     });
 
     const rawPayloadsBucket = new s3.Bucket(this, 'RawPayloadsBucket', {
@@ -199,7 +213,12 @@ export class Supporter360Stack extends cdk.Stack {
     const lambdaSecurityGroup = new ec2.SecurityGroup(this, 'LambdaSecurityGroup', {
       vpc,
       description: 'Security group for Lambda functions',
+      allowAllOutbound: true, // Allow outbound HTTPS for VPC endpoints
     });
+
+    // Grant Lambda security group access to VPC endpoints
+    secretsManagerEndpoint.connections.allowDefaultPortFrom(lambdaSecurityGroup);
+    sqsEndpoint.connections.allowDefaultPortFrom(lambdaSecurityGroup);
 
     dbSecurityGroup.addIngressRule(
       lambdaSecurityGroup,
@@ -236,7 +255,7 @@ export class Supporter360Stack extends cdk.Stack {
     // Public URLs (not secrets)
     const futureTicketingApiUrl = 'https://external.futureticketing.ie';
     const shopifyShopDomain = 'shamrock-rovers-fc.myshopify.com';
-    const shopifyClientId = cdk.SecretValue.secretsManager('supporter360/shopify', { jsonField: 'client_id' });
+    const shopifyClientId = cdk.SecretValue.secretsManager('supporter360/shopify', { jsonField: 'clientId' });
     const shopifyEventBusArn = `arn:aws:events:eu-west-1:${this.account}:event-bus/aws.partner/shopify.com/313809895425/supporter360`;
     const gocardlessApiUrl = 'https://api.gocardless.com';
     const gocardlessEnvironment = 'live';
@@ -617,18 +636,96 @@ export class Supporter360Stack extends cdk.Stack {
     // securityAlertTopic.addSubscription(new subscriptions.EmailSubscription('alerts@example.com'));
 
     // ========================================
+    // Lambda Authorizer
+    // ========================================
+    const authorizerFunction = new lambda.Function(this, 'ApiAuthorizer', {
+      runtime: lambda.Runtime.NODEJS_18_X,
+      handler: 'handlers/authorizer.handler',
+      code: lambda.Code.fromAsset('../backend/dist'),
+      timeout: cdk.Duration.seconds(5),
+      vpc,
+      vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
+      securityGroups: [lambdaSecurityGroup],
+      environment: commonEnvironment,
+      description: 'API Gateway Lambda authorizer for API key validation',
+    });
+
+    const authorizer = new apigateway.TokenAuthorizer(this, 'ApiGatewayAuthorizer', {
+      handler: authorizerFunction,
+      identitySource: 'method.request.header.X-API-Key',
+    });
+
+    // ========================================
+    // WAF Web ACL
+    // ========================================
+    const webAcl = new waf.CfnWebACL(this, 'ApiGatewayWebAcl', {
+      defaultAction: {
+        allow: {},
+      },
+      scope: 'REGIONAL',
+      visibilityConfig: {
+        sampledRequestsEnabled: true,
+        cloudWatchMetricsEnabled: true,
+        metricName: 'Supporter360ApiGatewayWebAcl',
+      },
+      rules: [
+        // AWS Managed Rules: Common Rule Set
+        {
+          name: 'AWSManagedRulesCommonRuleSet',
+          priority: 1,
+          overrideAction: {
+            none: {},
+          },
+          statement: {
+            managedRuleGroupStatement: {
+              vendorName: 'AWS',
+              name: 'AWSManagedRulesCommonRuleSet',
+            },
+          },
+          visibilityConfig: {
+            sampledRequestsEnabled: true,
+            cloudWatchMetricsEnabled: true,
+            metricName: 'AWSManagedRulesCommonRuleSet',
+          },
+        },
+        // Rate-based rule: 1000 requests per 5 minutes per IP
+        {
+          name: 'RateLimitRule',
+          priority: 2,
+          action: {
+            block: {},
+          },
+          statement: {
+            rateBasedStatement: {
+              limit: 1000,
+              aggregateKeyType: 'IP',
+            },
+          },
+          visibilityConfig: {
+            sampledRequestsEnabled: true,
+            cloudWatchMetricsEnabled: true,
+            metricName: 'RateLimitRule',
+          },
+        },
+      ],
+    });
+
+    // ========================================
     // API Gateway
     // ========================================
+    // CORS configuration - Production origins only (localhost removed for security)
+    const allowedOrigins = [
+      'https://shamrockrovers.ie',  // Production domain
+      // S3 static website URL will be added after first deployment
+      // Format: https://supporter360-frontend-{account}.s3-website-eu-west-1.amazonaws.com
+    ];
+
     const api = new apigateway.RestApi(this, 'Supporter360Api', {
       restApiName: 'Supporter 360 API',
       description: 'API for Supporter 360',
       defaultCorsPreflightOptions: {
-        // Restrict CORS to specific origins for security
-        allowOrigins: [
-          'https://shamrockrovers.ie',          // Production domain
-          'http://localhost:3000',              // Local development
-          'http://localhost:5173',              // Vite dev server
-        ],
+        // Restrict CORS to specific production origins for security
+        allowOrigins: allowedOrigins,
         allowMethods: apigateway.Cors.ALL_METHODS,
         allowHeaders: ['Content-Type', 'Authorization', 'X-API-Key'],
       },
@@ -637,8 +734,8 @@ export class Supporter360Stack extends cdk.Stack {
         throttlingBurstLimit: 100,             // Rate limiting: burst limit
         throttlingRateLimit: 50,               // Rate limiting: steady rate
         metricsEnabled: true,                   // Enable CloudWatch metrics
-        loggingLevel: apigateway.MethodLoggingLevel.INFO,
-        dataTraceEnabled: true,
+        // loggingLevel: apigateway.MethodLoggingLevel.INFO,  // Requires CloudWatch Logs role ARN
+        // dataTraceEnabled: false,                // Requires CloudWatch Logs role ARN
       },
     });
 
@@ -662,7 +759,15 @@ export class Supporter360Stack extends cdk.Stack {
 
     plan.addApiKey(apiKey);
 
-    // Webhook endpoints
+    // WAF Web ACL association - temporarily disabled due to ARN format issues
+    // TODO: Enable WAF association after resolving ARN format for API Gateway stage
+    // The WAF WebACL resource is created but not yet associated with API Gateway
+    // new waf.CfnWebACLAssociation(this, 'ApiGatewayWebAclAssociation', {
+    //   resourceArn: apiGatewayStageArn,
+    //   webAclArn: webAcl.attrArn,
+    // });
+
+    // Webhook endpoints (NO authorizer - public endpoints for external webhooks)
     const webhooksResource = api.root.addResource('webhooks');
     const shopifyResource = webhooksResource.addResource('shopify');
     shopifyResource.addMethod('POST', new apigateway.LambdaIntegration(shopifyWebhookHandler));
@@ -692,20 +797,32 @@ export class Supporter360Stack extends cdk.Stack {
       }],
     });
 
-    // API endpoints
+    // API endpoints (WITH authorizer - protected endpoints)
     const searchResource = api.root.addResource('search');
-    searchResource.addMethod('GET', new apigateway.LambdaIntegration(searchHandler));
+    searchResource.addMethod('GET', new apigateway.LambdaIntegration(searchHandler), {
+      authorizer,
+      authorizationType: apigateway.AuthorizationType.CUSTOM,
+    });
 
     const supportersResource = api.root.addResource('supporters');
     const supporterResource = supportersResource.addResource('{id}');
-    supporterResource.addMethod('GET', new apigateway.LambdaIntegration(profileHandler));
+    supporterResource.addMethod('GET', new apigateway.LambdaIntegration(profileHandler), {
+      authorizer,
+      authorizationType: apigateway.AuthorizationType.CUSTOM,
+    });
 
     const timelineResource = supporterResource.addResource('timeline');
-    timelineResource.addMethod('GET', new apigateway.LambdaIntegration(timelineHandler));
+    timelineResource.addMethod('GET', new apigateway.LambdaIntegration(timelineHandler), {
+      authorizer,
+      authorizationType: apigateway.AuthorizationType.CUSTOM,
+    });
 
     const adminResource = api.root.addResource('admin');
     const mergeResource = adminResource.addResource('merge');
-    mergeResource.addMethod('POST', new apigateway.LambdaIntegration(mergeHandler));
+    mergeResource.addMethod('POST', new apigateway.LambdaIntegration(mergeHandler), {
+      authorizer,
+      authorizationType: apigateway.AuthorizationType.CUSTOM,
+    });
 
     // ========================================
     // Frontend Hosting (S3 Static Website - no CloudFront)

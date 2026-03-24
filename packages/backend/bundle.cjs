@@ -84,6 +84,22 @@ async function bundle() {
   console.log('\nBundling complete!');
   console.log(`Total handlers bundled: ${entryPoints.length}`);
 
+  // Copy certs directory to dist for Lambda deployment
+  const certsSourceDir = path.join(__dirname, 'certs');
+  const certsTargetDir = path.join(__dirname, 'dist', 'certs');
+  if (fs.existsSync(certsSourceDir)) {
+    fs.mkdirSync(certsTargetDir, { recursive: true });
+    const certFiles = fs.readdirSync(certsSourceDir);
+    certFiles.forEach(file => {
+      const sourcePath = path.join(certsSourceDir, file);
+      const targetPath = path.join(certsTargetDir, file);
+      fs.copyFileSync(sourcePath, targetPath);
+    });
+    console.log(`\nCopied ${certFiles.length} certificate file(s) to dist/certs/`);
+  } else {
+    console.warn('\nWarning: certs directory not found, SSL certificates not copied');
+  }
+
   // List all bundled files
   console.log('\nBundled files:');
   for (const entry of entryPoints) {

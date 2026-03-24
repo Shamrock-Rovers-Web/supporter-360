@@ -1,5 +1,7 @@
 import { Client } from 'pg';
 import { query } from '../db/connection';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 
 const schema = `
 -- Enable UUID extension
@@ -163,6 +165,53 @@ INSERT INTO config (key, value, description) VALUES
 ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW();
 `;
 
+// ============================================================================
+// SSL Configuration
+// ============================================================================
+
+/**
+ * Gets the RDS CA certificate for SSL verification in migrations.
+ * NOTE: In Lambda, files are bundled at /var/task/ regardless of __dirname
+ */
+function getRDSCACertificate(): string {
+  try {
+    // In Lambda, __dirname is /var/task/migrations but certs are at /var/task/certs
+    // Use process.cwd() or absolute path from the bundle root
+    const certPath = join(process.cwd(), 'certs', 'rds-ca-bundle.pem');
+    return readFileSync(certPath, 'utf-8');
+  } catch (error) {
+    throw new Error(
+      `Failed to load RDS CA certificate from ${join(process.cwd(), 'certs', 'rds-ca-bundle.pem')}: ${error instanceof Error ? error.message : 'Unknown error'}`
+    );
+  }
+}
+
+/**
+ * Gets SSL configuration for migration database connections.
+ */
+function getSSLConfig() {
+  // In production, always verify certificates
+  if (process.env.NODE_ENV === 'production') {
+    return {
+      ca: getRDSCACertificate(),
+      rejectUnauthorized: true,
+    };
+  }
+
+  // For development, allow skipping if explicitly requested
+  if (process.env.DB_SSL_SKIP_VERIFY === 'true') {
+    console.warn('⚠️  WARNING: SSL certificate verification is DISABLED (DB_SSL_SKIP_VERIFY=true)');
+    return { rejectUnauthorized: false };
+  }
+
+  // Default: verify certificates
+  return {
+    ca: getRDSCACertificate(),
+    rejectUnauthorized: true,
+  };
+}
+
+
 export const handler = async () => {
   const client = new Client({
     host: process.env.DB_HOST,
@@ -170,7 +219,7 @@ export const handler = async () => {
     database: process.env.DB_NAME,
     user: process.env.DB_USER,
     password: process.env.DB_PASSWORD,
-    ssl: { rejectUnauthorized: false }
+    ssl: process.env.DB_SSL === 'true' ? getSSLConfig() : undefined
   });
 
   try {
