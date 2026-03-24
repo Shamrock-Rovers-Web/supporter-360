@@ -49,13 +49,13 @@ aws logs tail /aws/lambda/Supporter360Stack-MailchimpWebhookHandlerE3BC6752-xB15
 3. **Improved .gitignore** - Better exclusions for generated files
 4. **Identified critical webhook issue** - Signature verification failing
 
-### E2E Test Results (gleesonb@gmail.com)
+### E2E Test Results ([REDACTED])
 ```
 ✅ 5/5 tests passed
-✅ Search API: Found Bill Gleeson (supporter_id: 4e335e47-ba5e-4d14-bb27-7a532d928ad0)
-✅ Profile API: Future Ticketing data present (account ID: 324)
+✅ Search API: Found test supporter (supporter_id: [REDACTED])
+✅ Profile API: Future Ticketing data present (account ID: [REDACTED])
 ⚠️ Timeline API: Empty (FT only imported accounts, not events yet)
-✅ Frontend: Loads at https://d2aoqa35scit03.cloudfront.net
+✅ Frontend: Loads at [PRODUCTION_CLOUDFRONT_URL]
 📊 Integrations: 1/5 working (Future Ticketing only)
 ```
 
@@ -95,11 +95,11 @@ WARN GoCardless webhook missing signature
 
 ### Deployed Infrastructure
 ```
-API URL:       https://2u9a7una05.execute-api.eu-west-1.amazonaws.com/prod/
-Frontend:      https://d2aoqa35scit03.cloudfront.net
-Database:      supporter360stack-supporter360database3a977b01-tdx3anttjiwx.cmfwmmgu7sye.eu-west-1.rds.amazonaws.com
+API URL:       [PRODUCTION_API_URL]
+Frontend:      [PRODUCTION_CLOUDFRONT_URL]
+Database:      [PRODUCTION_RDS_ENDPOINT]
 Region:        eu-west-1
-Stack ARN:     arn:aws:cloudformation:eu-west-1:950596328856:stack/Supporter360Stack/c49bd340-fc38-11f0-b050-0af264d57525
+Stack ARN:     [PRODUCTION_STACK_ARN]
 ```
 
 ---
@@ -133,8 +133,8 @@ Stack ARN:     arn:aws:cloudformation:eu-west-1:950596328856:stack/Supporter360S
 |-----------|--------|---------|
 | Database (RDS PostgreSQL) | ✅ Running | Upgraded to t4g.medium for more connections |
 | Backend Lambda Functions | ✅ Deployed | All 18 handlers deployed |
-| API Gateway | ✅ Working | `https://2u9a7una05.execute-api.eu-west-1.amazonaws.com/prod/` |
-| Frontend (CloudFront) | ✅ Working | `https://d2aoqa35scit03.cloudfront.net` |
+| API Gateway | ✅ Working | `[PRODUCTION_API_URL]` |
+| Frontend (CloudFront) | ✅ Working | `[PRODUCTION_CLOUDFRONT_URL]` |
 | Search API | ✅ Tested | 970 supporters imported from FT |
 | Timeline API | ✅ Fixed | Now handles missing query params |
 | **Future Ticketing Integration** | ✅ **WORKING** | Polling + Processing + Display |
@@ -167,7 +167,7 @@ FUTURE_TICKETING_PRIVATE_KEY: *** (in FT dashboard)
 
 **Test Search:**
 ```bash
-curl -H 'X-API-Key: dev-staff-key' 'https://2u9a7una05.execute-api.eu-west-1.amazonaws.com/prod/search?q=gleesonb@gmail.com&field=email'
+curl -H 'X-API-Key: [API_KEY]' '[API_URL]/search?q=[TEST_EMAIL]&field=email'
 # Returns: Bill Gleeson (4e335e47-ba5e-4d14-bb27-7a532d928ad0)
 ```
 

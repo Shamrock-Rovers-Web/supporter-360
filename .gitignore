@@ -15,6 +15,9 @@ build/
 .env
 .env.local
 .env.*.local
+.env.production
+.env.test
+.env.development
 
 # AWS
 .aws-sam/

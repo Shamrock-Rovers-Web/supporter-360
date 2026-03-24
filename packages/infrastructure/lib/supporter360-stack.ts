@@ -196,7 +196,7 @@ export class Supporter360Stack extends cdk.Stack {
     // Public URLs (not secrets)
     const futureTicketingApiUrl = 'https://external.futureticketing.ie';
     const shopifyShopDomain = 'shamrock-rovers-fc.myshopify.com';
-    const shopifyClientId = 'e5e5abc1adf25556a930aa87dba80d97';
+    const shopifyClientId = cdk.SecretValue.secretsManager('supporter360/shopify', 'json', 'client_id');
     const shopifyEventBusArn = `arn:aws:events:eu-west-1:${this.account}:event-bus/aws.partner/shopify.com/313809895425/supporter360`;
     const gocardlessApiUrl = 'https://api.gocardless.com';
     const gocardlessEnvironment = 'live';

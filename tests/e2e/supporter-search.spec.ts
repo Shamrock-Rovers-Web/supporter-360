@@ -1,9 +1,9 @@
 import { test, expect } from '@playwright/test';
 
-const API_URL = 'https://2u9a7una05.execute-api.eu-west-1.amazonaws.com/prod';
-const FRONTEND_URL = 'https://d2aoqa35scit03.cloudfront.net';
-const API_KEY = 'dev-staff-key';
-const TEST_EMAIL = 'gleesonb@gmail.com';
+const API_URL = process.env.API_URL || '[PRODUCTION_API_URL]';
+const FRONTEND_URL = process.env.FRONTEND_URL || '[PRODUCTION_FRONTEND_URL]';
+const API_KEY = process.env.API_KEY || '[PRODUCTION_API_KEY]';
+const TEST_EMAIL = process.env.TEST_EMAIL || 'test@example.com';
 
 // Store supporter ID between tests
 let supporterId: string | undefined;
@@ -66,7 +66,7 @@ test.describe('Supporter 360 - End to End Tests', () => {
       supporter_type: expect.any(String)
     });
 
-    // Check for Future Ticketing data (should exist for gleesonb@gmail.com)
+    // Check for Future Ticketing data (should exist for test account)
     if (profile.linked_ids.futureticketing) {
       console.log('✅ Future Ticketing data found:', profile.linked_ids.futureticketing);
     } else {

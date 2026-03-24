@@ -3,7 +3,7 @@
 Use this checklist to gather all required credentials before populating Secrets Manager.
 
 ## Test Account
-**Email**: gleesonb@gmail.com
+**Email**: [REDACTED]
 **Purpose**: Verify all integrations are working
 
 ---
@@ -21,7 +21,7 @@ Use this checklist to gather all required credentials before populating Secrets 
 - `apiKey`: Typically looks like `ft_123abc456def`
 - `privateKey`: Longer alphanumeric string
 
-**Test**: After updating, check if Bill Gleeson's orders appear in the system
+**Test**: After updating, check if test account orders appear in the system
 
 ---
 
@@ -43,7 +43,7 @@ Use this checklist to gather all required credentials before populating Secrets 
 2. Reinstall the app on shamrock-rovers-fc.myshopify.com
 3. Note the webhook secret for HMAC verification
 
-**Test**: Check if Gleeson's orders appear in Shopify → Orders
+**Test**: Check if test account orders appear in Shopify → Orders
 
 ---
 
@@ -58,10 +58,10 @@ Use this checklist to gather all required credentials before populating Secrets 
 4. Webhooks → Select your webhook → Click "..." → Reveal signing secret
 
 **Required**:
-- `secretKey`: Currently `sk_live_51F7JnlK...` (EXPOSED - must rotate!)
+- `secretKey`: Currently `[REDACTED]` (EXPOSED - must rotate!)
   - Roll this key immediately
   - New key will be provided after rolling
-- `webhookSecret`: Currently `whsec_8Dxrwl9...` (EXPOSED - must rotate!)
+- `webhookSecret`: Currently `[REDACTED]` (EXPOSED - must rotate!)
   - Rotate webhook secret
   - Update webhook endpoint if it changes
 
@@ -129,7 +129,7 @@ Use this checklist to gather all required credentials before populating Secrets 
    - Season ticket holders audience
    - Everyone audience
 
-**Test**: Subscribe gleesonb@gmail.com to a list and check if it appears in Supporter360
+**Test**: Subscribe test account to a list and check if it appears in Supporter360
 
 ---
 
@@ -201,5 +201,5 @@ After deployment and credential population:
 - [ ] GoCardless webhooks accept test payments
 - [ ] Mailchimp webhooks accept test subscriptions
 - [ ] Shopify webhooks receive customer/order events
-- [ ] Search for gleesonb@gmail.com shows aggregated data
+- [ ] Search for test account shows aggregated data
 - [ ] Timeline shows events from all sources
