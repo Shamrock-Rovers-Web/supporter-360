@@ -13,7 +13,8 @@ This document outlines the migration strategy from the current VPC + NAT Gateway
 ### Key Changes
 - **Remove:** NAT Gateway ($16/month), CloudFront ($5-10/month)
 - **Add:** VPC Interface Endpoints (~$7/month total)
-- **Migrate:** RDS t4g.medium → RDS Serverless v2
+- **Migrate:** RDS t4g.medium → RDS Serverless v2 (with rds.DatabaseInstance CDK construct)
+- **Reorganize:** Move external-API-calling Lambdas to public subnets (free internet access)
 - **Result:** $25-40/month total cost
 
 ---
@@ -104,12 +105,19 @@ Internet
             ├─→ VPC Gateway Endpoint
             │     └─→ com.amazonaws.eu-west-1.s3 (FREE)
             │
-            └─→ Private Subnets (with Egress)
+            ├─→ Public Subnets
+            │     └─→ External API Lambdas (Direct Internet Access)
+            │           - gocardless-processor (calls GoCardless API)
+            │           - mailchimp-syncer (calls Mailchimp API)
+            │           - future-ticketing-poller (calls FT API)
+            │
+            └─→ Private Subnets (Isolated)
                   │
                   ├─→ RDS PostgreSQL Serverless v2
-                  │     - Min: 0.5 ACU (~$15/month)
-                  │     - Max: 2 ACU (~$60/month)
-                  │     - Typical: 0.5-1 ACU
+                  │     - Min: 0.5 ACU (~$0.50/month at minimum)
+                  │     - Max: 2 ACU (~$2/month at maximum)
+                  │     - Typical: 0.5-1 ACU (~$0.50-1/month)
+                  │     - Uses rds.DatabaseInstance with ServerlessV2 scaling
                   │
                   ├─→ SQS Queues (5x system queues + DLQs)
                   │
@@ -134,7 +142,7 @@ Internet
 |-----------|-------------|-------|
 | VPC Interface Endpoints | ~$7 | Secrets Manager + SQS (3 endpoints × ~$0.01/hour) |
 | VPC Gateway Endpoint | $0 | S3 endpoint is free |
-| RDS Serverless v2 | $15-30 | 0.5-1 ACU typical usage |
+| RDS Serverless v2 | $0.50-1 | 0.5-1 ACU typical usage (Serverless v2 pricing) |
 | Lambda/SQS/API | $20-30 | Based on actual usage |
 | **Total** | **$25-40** | **60-70% reduction** |
 
@@ -184,23 +192,28 @@ These processors read from S3 and write to PostgreSQL. They do NOT call external
 
 ---
 
-### Category 3: External API Callers (NEED Internet Access)
+### Category 3: External API Callers (Public Subnets - Free Internet Access)
 
-These functions call external APIs and **MUST retain internet access** via NAT Gateway or be moved to public subnets.
+These functions call external APIs and are placed in **public subnets** with direct internet access (no NAT Gateway needed).
 
 | Function | Purpose | External API | Network |
 |----------|---------|--------------|---------|
-| `gocardless-processor` | Fetches payment/customer/subscription details | `api.gocardless.com` | NEEDS Internet |
-| `future-ticketing-poller` | Polls FT API for new data | `external.futureticketing.ie` | NEEDS Internet |
-| `mailchimp-syncer` | Updates supporter tags in Mailchimp | `api.mailchimp.com` | NEEDS Internet |
+| `gocardless-processor` | Fetches payment/customer/subscription details | `api.gocardless.com` | Public Subnet (VPC-enabled) |
+| `future-ticketing-poller` | Polls FT API for new data | `external.futureticketing.ie` | Public Subnet (VPC-enabled) |
+| `mailchimp-syncer` | Updates supporter tags in Mailchimp | `api.mailchimp.com` | Public Subnet (VPC-enabled) |
 
 **Network Requirements:**
-- ✅ Access to external HTTPS APIs (Internet required)
+- ✅ Direct internet access (FREE via public subnets)
 - ✅ Access to SQS (Interface Endpoint - $0.01/hour)
-- ✅ Access to RDS PostgreSQL (VPC)
+- ✅ Access to RDS PostgreSQL via VPC (private subnets)
 - ✅ Access to Secrets Manager (Interface Endpoint - $0.01/hour)
 
-**Migration Action:** Keep NAT Gateway OR move to public subnets (see recommendations below).
+**Security:**
+- API keys stored in Secrets Manager
+- TLS enforced for all external API calls
+- VPC endpoints for internal service access
+
+**Migration Action:** Configure VPC-enabled Lambdas in public subnets with outbound internet access.
 
 ---
 
@@ -248,12 +261,14 @@ These functions run on schedules and only access internal AWS services.
 
 | Endpoint | Purpose | Used By | Required |
 |----------|---------|---------|----------|
-| `com.amazonaws.eu-west-1.secretsmanager` | Database credentials, API keys | All VPC Lambda functions | ✅ Yes |
-| `com.amazonaws.eu-west-1.sqs` | Queue access for processors | All processors | ✅ Yes |
+| `com.amazonaws.eu-west-1.secretsmanager` | Database credentials, API keys | All VPC Lambda functions (private + public subnets) | ✅ Yes |
+| `com.amazonaws.eu-west-1.sqs` | Queue access for processors | All processors (private + public subnets) | ✅ Yes |
 
 **Total Cost:** 2 endpoints × $7.30/month = **~$14.60/month**
 
 **Optimization:** Can share SQS endpoint across all queues (only need 1 SQS endpoint per VPC).
+
+**Note:** Public subnet Lambdas use VPC endpoints to access private AWS services (Secrets Manager, SQS, RDS).
 
 ### Gateway Endpoints (FREE)
 
@@ -265,167 +280,89 @@ These functions run on schedules and only access internal AWS services.
 
 ---
 
-## Migration Strategy Options
+## Chosen Architecture: RDS Serverless v2 + Public Subnets for External APIs
 
-### Option A: Hybrid Architecture (RECOMMENDED)
-
-Keep NAT Gateway ONLY for functions that need internet access.
+After reviewing the options, the chosen architecture is:
 
 **Architecture:**
-- Public subnets: Webhook handlers (no VPC)
-- Private subnets with egress: All other functions
-- NAT Gateway: Retained for 3 functions that call external APIs
-- VPC endpoints: Secrets Manager + SQS + S3
+- **Public subnets:** External API callers (gocardless-processor, mailchimp-syncer, future-ticketing-poller)
+- **Private subnets (isolated):** All other functions (processors, API handlers, scheduled functions)
+- **NO NAT Gateway** - Public subnets provide free internet access
+- **VPC endpoints:** Secrets Manager + SQS + S3 (for private subnet functions)
+- **RDS:** Serverless v2 with 0.5-2 ACU range
 
-**Cost:** ~$50-65/month (saves $15-30/month)
-- NAT Gateway: $16
-- VPC Interface Endpoints: $14.60
-- RDS Serverless v2: $15-30
-- Lambda/SQS/API: $20-30
+**Cost:** ~$25-40/month (60-70% reduction)
+- VPC Interface Endpoints: ~$15/month
+- RDS Serverless v2: $0.50-1/month
+- Lambda/SQS/API: $20-30/month
 
-**Pros:**
-- Minimal changes to code
-- Gradual migration path
-- Can optimize internet-requiring functions later
-
-**Cons:**
-- Still paying $16/month for NAT Gateway
-- 3 functions still need NAT Gateway
+**Key Design Decisions:**
+1. **RDS Serverless v2:** Uses standard rds.DatabaseInstance CDK construct with ServerlessV2 scaling configuration (not Aurora Serverless v1)
+2. **Public subnets for external API callers:** Eliminates NAT Gateway cost ($16/month savings)
+3. **VPC endpoints for internal services:** Private subnet functions use endpoints to access Secrets Manager, SQS, and S3
+4. **Security:** Public subnet functions use API keys from Secrets Manager (accessed via VPC endpoint) and enforce TLS
 
 ---
 
-### Option B: Full Serverless Migration (MAXIMUM SAVINGS)
+## Migration Plan
 
-Move internet-requiring functions to public subnets, eliminate NAT Gateway entirely.
-
-**Architecture:**
-- Public subnets: Webhook handlers + internet-requiring scheduled functions
-- Private subnets (isolated): All other functions
-- NO NAT Gateway
-- VPC endpoints: Secrets Manager + SQS + S3
-
-**Cost:** ~$35-50/month (saves $30-45/month)
-- VPC Interface Endpoints: $14.60
-- RDS Serverless v2: $15-30
-- Lambda/SQS/API: $20-30
-
-**Migration Required:**
-1. Move `gocardless-processor`, `future-ticketing-poller`, `mailchimp-syncer` to public subnets
-2. Update security group rules to allow outbound internet
-3. Remove NAT Gateway from VPC configuration
-
-**Pros:**
-- Maximum cost savings (eliminate $16/month NAT Gateway)
-- Clearer network segmentation (public vs private)
-- Future-proof for serverless best practices
-
-**Cons:**
-- More complex migration
-- Public subnet functions need VPC endpoint access to RDS (requires routing)
-- Security review needed for public subnet functions
-
----
-
-### Option C: Optimized Hybrid (BEST LONG-TERM)
-
-Same as Option A, but refactor external API calls to use API Gateway + VPC Link.
-
-**Architecture:**
-- Private subnets only (no NAT Gateway)
-- API Gateway with VPC Link for external API calls
-- VPC endpoints: Secrets Manager + SQS + S3
-
-**Cost:** ~$35-50/month (same as Option B)
-- API Gateway: minimal cost
-- VPC Interface Endpoints: $14.60
-- RDS Serverless v2: $15-30
-- Lambda/SQS/API: $20-30
-
-**Migration Required:**
-1. Create API Gateway endpoints for external APIs (proxy pattern)
-2. Refactor `gocardless-processor`, `future-ticketing-poller`, `mailchimp-syncer` to use internal API Gateway
-3. Remove NAT Gateway from VPC configuration
-
-**Pros:**
-- Eliminates NAT Gateway entirely
-- Centralizes external API calls (better observability, rate limiting)
-- More secure (no direct internet access from Lambdas)
-
-**Cons:**
-- Significant code changes required
-- Adds API Gateway latency
-- More complex architecture
-
----
-
-## Recommended Migration Path
-
-### Phase 1: Quick Wins (1-2 days)
-**Target:** Option A (Hybrid Architecture)
-**Savings:** $15-30/month immediately
+### Phase 1: Add VPC Endpoints (1 day)
+**Savings:** Minimal upfront, enables Phase 2
 
 1. **Add VPC Gateway Endpoint for S3** (FREE)
    - Eliminate NAT Gateway data transfer costs for S3
-   - Immediate cost reduction
+   - No code changes required
 
 2. **Add VPC Interface Endpoint for Secrets Manager** (~$7.30/month)
-   - Secure credential access
-   - Reduce NAT Gateway load
+   - Secure credential access without NAT Gateway
+   - All VPC Lambda functions benefit
 
 3. **Add VPC Interface Endpoint for SQS** (~$7.30/month)
-   - Secure queue access
-   - Reduce NAT Gateway load
+   - Secure queue access without NAT Gateway
+   - All processors benefit
 
-4. **Migrate RDS to Serverless v2** (saves $20-40/month)
-   - Change instance type to Serverless v2
-   - Set min ACU = 0.5, max ACU = 2
-   - Test during low-traffic period
-
-**Result:** $50-65/month (25-40% reduction)
+**Result:** Infrastructure ready for NAT Gateway removal
 
 ---
 
-### Phase 2: Optimize Internet Access (3-5 days)
-**Target:** Option B (Full Serverless)
-**Savings:** Additional $15/month
+### Phase 2: Migrate to RDS Serverless v2 (2 hours)
+**Savings:** $50-70/month → $0.50-1/month
 
-1. **Move internet-requiring functions to public subnets**
+1. **Update RDS configuration in CDK**
+   - Change from t4g.medium to Serverless v2
+   - Use rds.DatabaseInstance with ServerlessV2 scaling
+   - Set min ACU = 0.5, max ACU = 2
+
+2. **Deploy and test**
+   - Deploy to dev environment first
+   - Test all database operations
+   - Monitor ACU usage for 24 hours
+   - Deploy to production during low-traffic period
+
+**Result:** Massive database cost reduction (95%+ savings)
+
+---
+
+### Phase 3: Remove NAT Gateway (3-5 days)
+**Savings:** Additional $16/month
+
+1. **Move external API callers to public subnets**
    - `gocardless-processor`
-   - `future-ticketing-poller`
    - `mailchimp-syncer`
+   - `future-ticketing-poller`
 
 2. **Update VPC configuration**
-   - Remove NAT Gateway
-   - Add public subnets to VPC (if not present)
-   - Update security group rules
+   - Add public subnets to VPC
+   - Configure security groups for public subnet Lambdas
+   - Remove NAT Gateway from CDK stack
 
 3. **Test external API connectivity**
    - Verify GoCardless API access
-   - Verify Future Ticketing API access
    - Verify Mailchimp API access
+   - Verify Future Ticketing API access
+   - Confirm VPC endpoint access to Secrets Manager
 
-**Result:** $35-50/month (60-70% reduction)
-
----
-
-### Phase 3: Future Optimization (Optional)
-**Target:** Option C (API Gateway Proxy)
-**Savings:** Same as Phase 2, but better architecture
-
-1. **Create API Gateway proxy endpoints**
-   - `/api/external/gocardless/*`
-   - `/api/external/futureticketing/*`
-   - `/api/external/mailchimp/*`
-
-2. **Refactor scheduled functions**
-   - Use internal API Gateway instead of direct HTTPS
-   - Add rate limiting and observability
-
-3. **Remove public subnets** (optional)
-   - All functions back to private subnets
-   - Cleanest network architecture
-
-**Result:** $35-50/month (same cost, better architecture)
+**Result:** $25-40/month total (60-70% reduction)
 
 ---
 
@@ -521,14 +458,14 @@ Same as Option A, but refactor external API calls to use API Gateway + VPC Link.
     engine: rds.DatabaseInstanceEngine.postgres({
       version: rds.PostgresEngineVersion.VER_15,
     }),
+    // RDS Serverless v2 configuration
     instanceType: InstanceType.of(InstanceClass.BURSTABLE4, InstanceSize.MEDIUM),
-    // Enable Serverless v2
     enableServerlessV2: true,
     scalingConfiguration: {
       minCapacity: 0.5,
       maxCapacity: 2,
     },
-    // ... rest of config
+    // ... rest of config (vpc, securityGroups, etc.)
   });
   ```
 - [ ] Deploy to dev environment
@@ -544,20 +481,16 @@ Same as Option A, but refactor external API calls to use API Gateway + VPC Link.
 - [ ] Confirm RDS ACU usage is within expected range
 - [ ] Document actual vs. projected savings
 
-### Step 7: (Optional) Remove NAT Gateway (2 hours)
-- [ ] Move internet-requiring functions to public subnets
-- [ ] Update security group rules
+### Step 7: Remove NAT Gateway (2 hours)
+- [ ] Move external API callers to public subnets
+  - gocardless-processor
+  - mailchimp-syncer
+  - future-ticketing-poller
+- [ ] Update security group rules (allow outbound internet)
 - [ ] Remove NAT Gateway from CDK stack
 - [ ] Deploy to dev environment
 - [ ] Test external API access from public subnets
-- [ ] Deploy to production
-
-### Step 8: (Optional) API Gateway Proxy Pattern (5 hours)
-- [ ] Design API Gateway proxy endpoints
-- [ ] Implement proxy Lambda functions
-- [ ] Refactor scheduled functions to use proxy
-- [ ] Test external API access through proxy
-- [ ] Remove public subnets
+- [ ] Verify VPC endpoint access to Secrets Manager from public subnets
 - [ ] Deploy to production
 
 ---
@@ -621,6 +554,7 @@ Same as Option A, but refactor external API calls to use API Gateway + VPC Link.
 - RDS ACU usage > 1.5 for extended periods
 - Total monthly cost > $50
 - VPC endpoint data transfer costs
+- Note: Serverless v2 costs are minimal (~$0.50-1/month typical)
 
 ### Performance Alerts
 - Lambda error rate > 1%
