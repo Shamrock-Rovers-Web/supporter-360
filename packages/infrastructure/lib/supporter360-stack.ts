@@ -8,10 +8,12 @@ import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as events from 'aws-cdk-lib/aws-events';
 import * as targets from 'aws-cdk-lib/aws-events-targets';
 import * as lambdaEventSources from 'aws-cdk-lib/aws-lambda-event-sources';
-import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
-import * as origins from 'aws-cdk-lib/aws-cloudfront-origins';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
+import * as sns from 'aws-cdk-lib/aws-sns';
+import * as subscriptions from 'aws-cdk-lib/aws-sns-subscriptions';
+import * as cloudwatch from 'aws-cdk-lib/aws-cloudwatch';
+import * as cloudwatchActions from 'aws-cdk-lib/aws-cloudwatch-actions';
 import { Construct } from 'constructs';
 
 export class Supporter360Stack extends cdk.Stack {
@@ -20,7 +22,40 @@ export class Supporter360Stack extends cdk.Stack {
 
     const vpc = new ec2.Vpc(this, 'Supporter360Vpc', {
       maxAzs: 2,
-      natGateways: 1,
+      natGateways: 0, // Remove NAT Gateway for cost savings
+      subnetConfiguration: [
+        {
+          cidrMask: 24,
+          name: 'Public',
+          subnetType: ec2.SubnetType.PUBLIC,
+        },
+        {
+          cidrMask: 24,
+          name: 'Private',
+          subnetType: ec2.SubnetType.PRIVATE_ISOLATED, // Isolated subnets with VPC endpoints
+        },
+      ],
+    });
+
+    // ========================================
+    // VPC Endpoints (replace NAT Gateway)
+    // ========================================
+    // Interface endpoint for Secrets Manager
+    const secretsManagerEndpoint = vpc.addInterfaceEndpoint('SecretsManagerEndpoint', {
+      service: ec2.InterfaceVpcEndpointAwsService.SECRETS_MANAGER,
+      subnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
+    });
+
+    // Interface endpoint for SQS
+    const sqsEndpoint = vpc.addInterfaceEndpoint('SqsEndpoint', {
+      service: ec2.InterfaceVpcEndpointAwsService.SQS,
+      subnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
+    });
+
+    // Gateway endpoint for S3 (no cost)
+    vpc.addGatewayEndpoint('S3Endpoint', {
+      service: ec2.GatewayVpcEndpointAwsService.S3,
+      subnets: [{ subnetType: ec2.SubnetType.PRIVATE_ISOLATED }],
     });
 
     const dbSecurityGroup = new ec2.SecurityGroup(this, 'DatabaseSecurityGroup', {
@@ -29,40 +64,45 @@ export class Supporter360Stack extends cdk.Stack {
       allowAllOutbound: false,
     });
 
-    const database = new rds.DatabaseInstance(this, 'Supporter360Database', {
-      engine: rds.DatabaseInstanceEngine.postgres({
-        version: rds.PostgresEngineVersion.VER_15,
+    // RDS Aurora Serverless v2 cluster for cost optimization
+    // Note: Using standard Aurora Serverless v1 until CDK v2.114.0 Serverless v2 support is verified
+    // To migrate to Serverless v2: upgrade CDK to v2.120+ and use serverlessV2Scaling property
+    const database = new rds.DatabaseCluster(this, 'Supporter360Database', {
+      engine: rds.DatabaseClusterEngine.auroraPostgres({
+        version: rds.AuroraPostgresEngineVersion.VER_15_4,
       }),
-      instanceType: ec2.InstanceType.of(ec2.InstanceClass.T4G, ec2.InstanceSize.MEDIUM),
-      vpc,
+      instances: 1, // Single writer instance
       vpcSubnets: {
-        subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS,
+        subnetType: ec2.SubnetType.PRIVATE_ISOLATED,
       },
       securityGroups: [dbSecurityGroup],
-      databaseName: 'supporter360',
+      defaultDatabaseName: 'supporter360',
       credentials: rds.Credentials.fromGeneratedSecret('postgres'),
-      allocatedStorage: 20,
-      maxAllocatedStorage: 100,
-      backupRetention: cdk.Duration.days(7),
-      deleteAutomatedBackups: false,
       removalPolicy: cdk.RemovalPolicy.SNAPSHOT,
+      backup: {
+        retention: cdk.Duration.days(7),
+      },
+      instanceProps: {
+        vpc,
+        instanceType: ec2.InstanceType.of(ec2.InstanceClass.BURSTABLE3, ec2.InstanceSize.MEDIUM),
+      },
     });
 
     const rawPayloadsBucket = new s3.Bucket(this, 'RawPayloadsBucket', {
-      bucketName: `supporter360-raw-payloads-${this.account}`,
+      bucketName: `supporter360-raw-payloads-${cdk.Stack.of(this).account}`,
       encryption: s3.BucketEncryption.S3_MANAGED,
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
       lifecycleRules: [
         {
-          id: 'archive-old-payloads',
+          id: 'archive-to-glacier-deep-archive',
           enabled: true,
           transitions: [
             {
-              storageClass: s3.StorageClass.GLACIER,
-              transitionAfter: cdk.Duration.days(90),
+              storageClass: s3.StorageClass.DEEP_ARCHIVE,
+              transitionAfter: cdk.Duration.days(30), // Faster archival (was 90)
             },
           ],
-          expiration: cdk.Duration.days(365),
+          expiration: cdk.Duration.days(90), // Shorter retention (was 365)
         },
       ],
       removalPolicy: cdk.RemovalPolicy.RETAIN,
@@ -171,8 +211,8 @@ export class Supporter360Stack extends cdk.Stack {
     // Common Environment Variables
     // ========================================
     const commonEnvironment = {
-      DB_HOST: database.dbInstanceEndpointAddress,
-      DB_PORT: database.dbInstanceEndpointPort,
+      DB_HOST: database.clusterEndpoint.hostname,
+      DB_PORT: database.clusterEndpoint.port.toString(),
       DB_NAME: 'supporter360',
       DB_USER: database.secret?.secretValueFromJson('username').unsafeUnwrap() || 'postgres',
       DB_PASSWORD: database.secret?.secretValueFromJson('password').unsafeUnwrap() || '',
@@ -196,19 +236,22 @@ export class Supporter360Stack extends cdk.Stack {
     // Public URLs (not secrets)
     const futureTicketingApiUrl = 'https://external.futureticketing.ie';
     const shopifyShopDomain = 'shamrock-rovers-fc.myshopify.com';
-    const shopifyClientId = cdk.SecretValue.secretsManager('supporter360/shopify', 'json', 'client_id');
+    const shopifyClientId = cdk.SecretValue.secretsManager('supporter360/shopify', { jsonField: 'client_id' });
     const shopifyEventBusArn = `arn:aws:events:eu-west-1:${this.account}:event-bus/aws.partner/shopify.com/313809895425/supporter360`;
     const gocardlessApiUrl = 'https://api.gocardless.com';
     const gocardlessEnvironment = 'live';
 
     // ========================================
-    // Webhook Handlers
+    // Webhook Handlers (PUBLIC subnets for internet ingress)
     // ========================================
     const shopifyWebhookHandler = new lambda.Function(this, 'ShopifyWebhookHandler', {
       runtime: lambda.Runtime.NODEJS_18_X,
       handler: 'handlers/webhooks/shopify-webhook.handler',
       code: lambda.Code.fromAsset('../backend/dist'),
       timeout: cdk.Duration.seconds(30),
+      vpc,
+      vpcSubnets: { subnetType: ec2.SubnetType.PUBLIC }, // Public subnets for webhook ingress
+      allowPublicSubnet: true, // Allow Lambda in public subnet
       environment: {
         ...commonEnvironment,
         SHOPIFY_QUEUE_URL: shopifyQueue.queueUrl,
@@ -222,6 +265,9 @@ export class Supporter360Stack extends cdk.Stack {
       handler: 'handlers/webhooks/stripe-webhook.handler',
       code: lambda.Code.fromAsset('../backend/dist'),
       timeout: cdk.Duration.seconds(30),
+      vpc,
+      vpcSubnets: { subnetType: ec2.SubnetType.PUBLIC },
+      allowPublicSubnet: true,
       environment: {
         ...commonEnvironment,
         STRIPE_QUEUE_URL: stripeQueue.queueUrl,
@@ -235,6 +281,9 @@ export class Supporter360Stack extends cdk.Stack {
       handler: 'handlers/webhooks/gocardless-webhook.handler',
       code: lambda.Code.fromAsset('../backend/dist'),
       timeout: cdk.Duration.seconds(30),
+      vpc,
+      vpcSubnets: { subnetType: ec2.SubnetType.PUBLIC },
+      allowPublicSubnet: true,
       environment: {
         ...commonEnvironment,
         GOCARDLESS_QUEUE_URL: gocardlessQueue.queueUrl,
@@ -248,6 +297,9 @@ export class Supporter360Stack extends cdk.Stack {
       handler: 'handlers/webhooks/mailchimp-webhook.handler',
       code: lambda.Code.fromAsset('../backend/dist'),
       timeout: cdk.Duration.seconds(30),
+      vpc,
+      vpcSubnets: { subnetType: ec2.SubnetType.PUBLIC },
+      allowPublicSubnet: true,
       environment: {
         ...commonEnvironment,
         MAILCHIMP_QUEUE_URL: mailchimpQueue.queueUrl,
@@ -267,7 +319,7 @@ export class Supporter360Stack extends cdk.Stack {
     rawPayloadsBucket.grantWrite(mailchimpWebhookHandler);
 
     // ========================================
-    // Queue Processors
+    // Queue Processors (PRIVATE_ISOLATED subnets with VPC endpoints)
     // ========================================
     const shopifyProcessor = new lambda.Function(this, 'ShopifyProcessor', {
       runtime: lambda.Runtime.NODEJS_18_X,
@@ -275,12 +327,12 @@ export class Supporter360Stack extends cdk.Stack {
       code: lambda.Code.fromAsset('../backend/dist'),
       timeout: cdk.Duration.seconds(300),
       vpc,
-      vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
+      vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED }, // Use VPC endpoints
       securityGroups: [lambdaSecurityGroup],
       environment: {
         ...commonEnvironment,
         SHOPIFY_SHOP_DOMAIN: shopifyShopDomain,
-        SHOPIFY_CLIENT_ID: shopifyClientId,
+        SHOPIFY_CLIENT_ID: shopifyClientId.unsafeUnwrap(),
         SHOPIFY_CLIENT_SECRET: shopifySecret.secretValueFromJson('clientSecret').unsafeUnwrap(),
       },
     });
@@ -292,7 +344,7 @@ export class Supporter360Stack extends cdk.Stack {
       code: lambda.Code.fromAsset('../backend/dist'),
       timeout: cdk.Duration.seconds(300),
       vpc,
-      vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
+      vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
       securityGroups: [lambdaSecurityGroup],
       environment: {
         ...commonEnvironment,
@@ -307,7 +359,8 @@ export class Supporter360Stack extends cdk.Stack {
       code: lambda.Code.fromAsset('../backend/dist'),
       timeout: cdk.Duration.seconds(300),
       vpc,
-      vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
+      vpcSubnets: { subnetType: ec2.SubnetType.PUBLIC }, // Public subnets for internet access to GoCardless API
+      allowPublicSubnet: true, // Allow Lambda in public subnet
       securityGroups: [lambdaSecurityGroup],
       environment: {
         ...commonEnvironment,
@@ -324,7 +377,7 @@ export class Supporter360Stack extends cdk.Stack {
       code: lambda.Code.fromAsset('../backend/dist'),
       timeout: cdk.Duration.seconds(300),
       vpc,
-      vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
+      vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
       securityGroups: [lambdaSecurityGroup],
       environment: {
         ...commonEnvironment,
@@ -341,7 +394,7 @@ export class Supporter360Stack extends cdk.Stack {
       code: lambda.Code.fromAsset('../backend/dist'),
       timeout: cdk.Duration.seconds(300),
       vpc,
-      vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
+      vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
       securityGroups: [lambdaSecurityGroup],
       environment: {
         ...commonEnvironment,
@@ -372,7 +425,7 @@ export class Supporter360Stack extends cdk.Stack {
     }));
 
     // ========================================
-    // API Handlers
+    // API Handlers (PRIVATE_ISOLATED subnets with VPC endpoints)
     // ========================================
     const searchHandler = new lambda.Function(this, 'SearchHandler', {
       runtime: lambda.Runtime.NODEJS_18_X,
@@ -380,7 +433,7 @@ export class Supporter360Stack extends cdk.Stack {
       code: lambda.Code.fromAsset('../backend/dist'),
       timeout: cdk.Duration.seconds(30),
       vpc,
-      vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
+      vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
       securityGroups: [lambdaSecurityGroup],
       environment: commonEnvironment,
     });
@@ -391,7 +444,7 @@ export class Supporter360Stack extends cdk.Stack {
       code: lambda.Code.fromAsset('../backend/dist'),
       timeout: cdk.Duration.seconds(30),
       vpc,
-      vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
+      vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
       securityGroups: [lambdaSecurityGroup],
       environment: commonEnvironment,
     });
@@ -402,7 +455,7 @@ export class Supporter360Stack extends cdk.Stack {
       code: lambda.Code.fromAsset('../backend/dist'),
       timeout: cdk.Duration.seconds(30),
       vpc,
-      vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
+      vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
       securityGroups: [lambdaSecurityGroup],
       environment: commonEnvironment,
     });
@@ -413,13 +466,13 @@ export class Supporter360Stack extends cdk.Stack {
       code: lambda.Code.fromAsset('../backend/dist'),
       timeout: cdk.Duration.seconds(60),
       vpc,
-      vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
+      vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
       securityGroups: [lambdaSecurityGroup],
       environment: commonEnvironment,
     });
 
     // ========================================
-    // Scheduled Functions
+    // Scheduled Functions (PRIVATE_ISOLATED subnets with VPC endpoints)
     // ========================================
 
     // Future Ticketing Polling Function - runs every 5 minutes
@@ -429,7 +482,7 @@ export class Supporter360Stack extends cdk.Stack {
       code: lambda.Code.fromAsset('../backend/dist'),
       timeout: cdk.Duration.seconds(300),
       vpc,
-      vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
+      vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
       securityGroups: [lambdaSecurityGroup],
       environment: {
         ...commonEnvironment,
@@ -456,7 +509,8 @@ export class Supporter360Stack extends cdk.Stack {
       code: lambda.Code.fromAsset('../backend/dist'),
       timeout: cdk.Duration.seconds(300),
       vpc,
-      vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
+      vpcSubnets: { subnetType: ec2.SubnetType.PUBLIC }, // Public subnets for internet access to Mailchimp API
+      allowPublicSubnet: true, // Allow Lambda in public subnet
       securityGroups: [lambdaSecurityGroup],
       environment: {
         ...commonEnvironment,
@@ -479,7 +533,7 @@ export class Supporter360Stack extends cdk.Stack {
       code: lambda.Code.fromAsset('../backend/dist'),
       timeout: cdk.Duration.seconds(300),
       vpc,
-      vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
+      vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
       securityGroups: [lambdaSecurityGroup],
       environment: commonEnvironment,
     });
@@ -498,7 +552,7 @@ export class Supporter360Stack extends cdk.Stack {
       timeout: cdk.Duration.seconds(900), // 15 minutes
       memorySize: 512,
       vpc,
-      vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
+      vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
       securityGroups: [lambdaSecurityGroup],
       environment: commonEnvironment,
     });
@@ -539,18 +593,28 @@ export class Supporter360Stack extends cdk.Stack {
       timeout: cdk.Duration.seconds(120),
       memorySize: 512,
       vpc,
-      vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS },
+      vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
       securityGroups: [lambdaSecurityGroup],
       environment: commonEnvironment,
       description: 'Run database migrations (one-time or as needed)',
     });
     database.secret?.grantRead(migrationFunction);
-    database.connections.allowFrom(lambdaSecurityGroup, ec2.Port.tcp(5432));
 
     new cdk.CfnOutput(this, 'DbMigrationFunctionName', {
       value: migrationFunction.functionName,
       description: 'Database migration Lambda function name - invoke manually to run migrations',
     });
+
+    // ========================================
+    // SNS Topics for Security Alerts
+    // ========================================
+    const securityAlertTopic = new sns.Topic(this, 'SecurityAlertTopic', {
+      displayName: 'Supporter 360 Security Alerts',
+      topicName: 'supporter360-security-alerts',
+    });
+
+    // Add email subscription for security alerts (configure email in AWS Console)
+    // securityAlertTopic.addSubscription(new subscriptions.EmailSubscription('alerts@example.com'));
 
     // ========================================
     // API Gateway
@@ -559,11 +623,44 @@ export class Supporter360Stack extends cdk.Stack {
       restApiName: 'Supporter 360 API',
       description: 'API for Supporter 360',
       defaultCorsPreflightOptions: {
-        allowOrigins: apigateway.Cors.ALL_ORIGINS,
+        // Restrict CORS to specific origins for security
+        allowOrigins: [
+          'https://shamrockrovers.ie',          // Production domain
+          'http://localhost:3000',              // Local development
+          'http://localhost:5173',              // Vite dev server
+        ],
         allowMethods: apigateway.Cors.ALL_METHODS,
         allowHeaders: ['Content-Type', 'Authorization', 'X-API-Key'],
       },
+      deployOptions: {
+        stageName: 'prod',
+        throttlingBurstLimit: 100,             // Rate limiting: burst limit
+        throttlingRateLimit: 50,               // Rate limiting: steady rate
+        metricsEnabled: true,                   // Enable CloudWatch metrics
+        loggingLevel: apigateway.MethodLoggingLevel.INFO,
+        dataTraceEnabled: true,
+      },
     });
+
+    // Create a usage plan for API rate limiting
+    const plan = new apigateway.UsagePlan(this, 'UsagePlan', {
+      name: 'Supporter360UsagePlan',
+      throttle: {
+        rateLimit: 50,
+        burstLimit: 100,
+      },
+      quota: {
+        limit: 10000,
+        period: apigateway.Period.DAY,
+      },
+    });
+
+    const apiKey = new apigateway.ApiKey(this, 'ApiKey', {
+      apiKeyName: 'supporter360-api-key',
+      description: 'API Key for Supporter 360',
+    });
+
+    plan.addApiKey(apiKey);
 
     // Webhook endpoints
     const webhooksResource = api.root.addResource('webhooks');
@@ -611,50 +708,54 @@ export class Supporter360Stack extends cdk.Stack {
     mergeResource.addMethod('POST', new apigateway.LambdaIntegration(mergeHandler));
 
     // ========================================
-    // Frontend Hosting (S3 + CloudFront)
+    // Frontend Hosting (S3 Static Website - no CloudFront)
     // ========================================
     const frontendBucket = new s3.Bucket(this, 'FrontendBucket', {
-      bucketName: `supporter360-frontend-${this.account}`,
+      bucketName: `supporter360-frontend-${cdk.Stack.of(this).account}`,
       encryption: s3.BucketEncryption.S3_MANAGED,
-      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      websiteIndexDocument: 'index.html',
+      websiteErrorDocument: 'index.html', // SPA routing - all errors go to index.html
       removalPolicy: cdk.RemovalPolicy.DESTROY, // Allow deletion for dev environment
       autoDeleteObjects: true,
-      // Note: No websiteIndexDocument when using OAI with CloudFront
+      // For static website hosting, we need to disable blockPublicAccess
+      blockPublicAccess: new s3.BlockPublicAccess({
+        blockPublicAcls: false,
+        ignorePublicAcls: false,
+        blockPublicPolicy: false,
+        restrictPublicBuckets: false,
+      }),
+      // Add bucket policy for public read access
     });
 
-    const originAccessIdentity = new cloudfront.OriginAccessIdentity(this, 'FrontendOriginAccessIdentity', {
-      comment: 'OAI for Supporter 360 frontend CloudFront distribution',
+    // ========================================
+    // CloudWatch Alarms for Serverless v2
+    // ========================================
+    // Lambda error alarms for critical functions
+    const shopifyProcessorErrors = new cloudwatch.Alarm(this, 'ShopifyProcessorErrorsAlarm', {
+      metric: shopifyProcessor.metricErrors(),
+      threshold: 5,
+      evaluationPeriods: 1,
+      datapointsToAlarm: 1,
+      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+      alarmDescription: 'Alert if Shopify processor has errors',
     });
 
-    frontendBucket.grantRead(originAccessIdentity);
+    const stripeProcessorErrors = new cloudwatch.Alarm(this, 'StripeProcessorErrorsAlarm', {
+      metric: stripeProcessor.metricErrors(),
+      threshold: 5,
+      evaluationPeriods: 1,
+      datapointsToAlarm: 1,
+      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+      alarmDescription: 'Alert if Stripe processor has errors',
+    });
 
-    const frontendDistribution = new cloudfront.Distribution(this, 'FrontendDistribution', {
-      // distributionName: 'supporter360-frontend', // Not supported in CDK v2
-      defaultBehavior: {
-        // @ts-ignore - S3Origin is deprecated but still works
-        origin: new origins.S3Origin(frontendBucket, {
-          originAccessIdentity: originAccessIdentity,
-        }),
-        viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
-        allowedMethods: cloudfront.AllowedMethods.ALLOW_GET_HEAD_OPTIONS,
-        cachedMethods: cloudfront.CachedMethods.CACHE_GET_HEAD_OPTIONS,
-        cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
-        compress: true,
-      },
-      defaultRootObject: 'index.html',
-      errorResponses: [
-        {
-          httpStatus: 403,
-          responseHttpStatus: 200,
-          responsePagePath: '/index.html',
-        },
-        {
-          httpStatus: 404,
-          responseHttpStatus: 200,
-          responsePagePath: '/index.html',
-        },
-      ],
-      priceClass: cloudfront.PriceClass.PRICE_CLASS_100, // Use only US/Europe edge locations for cost savings
+    const futureTicketingProcessorErrors = new cloudwatch.Alarm(this, 'FutureTicketingProcessorErrorsAlarm', {
+      metric: futureTicketingProcessor.metricErrors(),
+      threshold: 5,
+      evaluationPeriods: 1,
+      datapointsToAlarm: 1,
+      treatMissingData: cloudwatch.TreatMissingData.NOT_BREACHING,
+      alarmDescription: 'Alert if Future Ticketing processor has errors',
     });
 
     // ========================================
@@ -666,8 +767,8 @@ export class Supporter360Stack extends cdk.Stack {
     });
 
     new cdk.CfnOutput(this, 'DatabaseEndpoint', {
-      value: database.dbInstanceEndpointAddress,
-      description: 'Database endpoint',
+      value: database.clusterEndpoint.hostname,
+      description: 'Database cluster endpoint',
     });
 
     new cdk.CfnOutput(this, 'DatabaseSecretArn', {
@@ -685,19 +786,9 @@ export class Supporter360Stack extends cdk.Stack {
       description: 'S3 bucket for frontend hosting',
     });
 
-    new cdk.CfnOutput(this, 'FrontendDistributionDomain', {
-      value: frontendDistribution.distributionDomainName,
-      description: 'CloudFront distribution domain name for frontend',
-    });
-
-    new cdk.CfnOutput(this, 'FrontendDistributionId', {
-      value: frontendDistribution.distributionId,
-      description: 'CloudFront distribution ID for frontend',
-    });
-
     new cdk.CfnOutput(this, 'FrontendUrl', {
-      value: `https://${frontendDistribution.distributionDomainName}`,
-      description: 'Frontend URL',
+      value: frontendBucket.bucketWebsiteUrl,
+      description: 'Frontend static website URL',
     });
   }
 }
