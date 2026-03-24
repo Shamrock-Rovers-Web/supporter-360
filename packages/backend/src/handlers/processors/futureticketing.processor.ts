@@ -27,6 +27,78 @@ import type { Supporter } from '@supporter360/shared';
 const supporterRepo = new SupporterRepository();
 const eventRepo = new EventRepository();
 
+// Data quality metrics
+interface DataQualityMetrics {
+  records_processed: number;
+  records_skipped: number;
+  records_with_errors: number;
+  validation_warnings: string[];
+}
+
+const metrics: DataQualityMetrics = {
+  records_processed: 0,
+  records_skipped: 0,
+  records_with_errors: 0,
+  validation_warnings: [],
+};
+
+/**
+ * Validate email address format
+ */
+function isValidEmail(email: string | null | undefined): boolean {
+  if (!email || typeof email !== 'string') {
+    return false;
+  }
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+}
+
+/**
+ * Validate date string is valid ISO format
+ */
+function isValidISODate(dateStr: string | null | undefined): boolean {
+  if (!dateStr || typeof dateStr !== 'string') {
+    return false;
+  }
+  const date = new Date(dateStr);
+  return date instanceof Date && !isNaN(date.getTime());
+}
+
+/**
+ * Sanitize string value (trim, remove null bytes)
+ */
+function sanitizeString(value: string | null | undefined): string | null {
+  if (value === null || value === undefined) {
+    return null;
+  }
+  if (typeof value !== 'string') {
+    return String(value);
+  }
+  return value.trim().replace(/\0/g, '') || null;
+}
+
+/**
+ * Safe parseFloat with validation
+ */
+function safeParseFloat(value: string | null | undefined): number | null {
+  if (!value || typeof value !== 'string') {
+    return null;
+  }
+  const parsed = parseFloat(value);
+  return isNaN(parsed) ? null : parsed;
+}
+
+/**
+ * Safe parseInt with validation
+ */
+function safeParseInt(value: string | null | undefined): number | null {
+  if (!value || typeof value !== 'string') {
+    return null;
+  }
+  const parsed = parseInt(value, 10);
+  return isNaN(parsed) ? null : parsed;
+}
+
 // ============================================================================
 // Types (matching new FT API response structure)
 // ============================================================================
@@ -174,10 +246,18 @@ type ProductMeaning = 'AwaySupporter' | 'SeasonTicket' | 'HomeTicket' | 'Other';
 export const handler = async (event: SQSEvent): Promise<void> => {
   console.log(`Processing ${event.Records.length} Future Ticketing messages`);
 
+  // Reset metrics for this invocation
+  metrics.records_processed = 0;
+  metrics.records_skipped = 0;
+  metrics.records_with_errors = 0;
+  metrics.validation_warnings = [];
+
   for (const record of event.Records) {
     try {
       await processFTMessage(record);
+      metrics.records_processed++;
     } catch (error) {
+      metrics.records_with_errors++;
       console.error('Error processing Future Ticketing message:', error);
       // Re-throw to trigger DLQ
       throw error;
@@ -185,6 +265,20 @@ export const handler = async (event: SQSEvent): Promise<void> => {
   }
 
   console.log('Successfully processed all Future Ticketing messages');
+
+  // Log data quality metrics
+  if (metrics.records_skipped > 0 || metrics.validation_warnings.length > 0) {
+    console.log('[FTProcessor] Data Quality Metrics:', {
+      processed: metrics.records_processed,
+      skipped: metrics.records_skipped,
+      errors: metrics.records_with_errors,
+      warnings: metrics.validation_warnings.length,
+    });
+
+    if (metrics.validation_warnings.length > 0) {
+      console.warn('[FTProcessor] Validation warnings:', metrics.validation_warnings);
+    }
+  }
 };
 
 // ============================================================================
@@ -194,10 +288,26 @@ export const handler = async (event: SQSEvent): Promise<void> => {
 async function processFTMessage(record: SQSRecord): Promise<void> {
   // Poller sends type in MessageAttributes, data in MessageBody
   const type = record.messageAttributes?.type?.stringValue;
-  const data = JSON.parse(record.body);
 
   if (!type) {
     console.error('Missing type attribute in SQS message');
+    metrics.records_skipped++;
+    return;
+  }
+
+  let data: unknown;
+  try {
+    data = JSON.parse(record.body);
+  } catch (error) {
+    console.error('Failed to parse SQS message body:', error);
+    metrics.records_skipped++;
+    return;
+  }
+
+  // Validate data is an object
+  if (!data || typeof data !== 'object') {
+    console.error('Invalid message data: not an object');
+    metrics.records_skipped++;
     return;
   }
 
@@ -227,6 +337,19 @@ async function processFTMessage(record: SQSRecord): Promise<void> {
 // ============================================================================
 
 async function processAccount(account: FTAccount): Promise<void> {
+  // Validate required fields
+  if (!account.id || typeof account.id !== 'string') {
+    console.error('[FTProcessor] Account missing required field: id');
+    metrics.records_skipped++;
+    return;
+  }
+
+  // Validate and sanitize email
+  const email = sanitizeString(account.email);
+  if (!isValidEmail(email)) {
+    metrics.validation_warnings.push(`Account ${account.id} has invalid email: ${email}`);
+  }
+
   const accountId = account.id;
 
   // Check if supporter already exists with this FT account ID
@@ -238,8 +361,8 @@ async function processAccount(account: FTAccount): Promise<void> {
   }
 
   // Check if supporter exists with matching email
-  if (account.email) {
-    const supporters = await supporterRepo.findByEmail(account.email);
+  if (email) {
+    const supporters = await supporterRepo.findByEmail(email);
 
     if (supporters.length === 1) {
       // Update existing supporter with FT account ID
@@ -258,11 +381,13 @@ async function processAccount(account: FTAccount): Promise<void> {
   }
 
   // Create new supporter
-  const name = `${account.first_name || ''} ${account.second_name || ''}`.trim() || null;
+  const firstName = sanitizeString(account.first_name);
+  const secondName = sanitizeString(account.second_name);
+  const name = [firstName, secondName].filter(Boolean).join(' ') || null;
 
   const newSupporter = await supporterRepo.create({
     name,
-    primary_email: account.email || null,
+    primary_email: email,
     phone: null, // FT doesn't provide phone at account level
     supporter_type: 'Unknown',
     supporter_type_source: 'auto',
@@ -271,8 +396,8 @@ async function processAccount(account: FTAccount): Promise<void> {
     },
   });
 
-  if (account.email) {
-    await supporterRepo.addEmailAlias(newSupporter.supporter_id, account.email, false);
+  if (email) {
+    await supporterRepo.addEmailAlias(newSupporter.supporter_id, email, false);
   }
 
   console.log(`Created new supporter from FT account: ${newSupporter.supporter_id}`);
@@ -283,6 +408,26 @@ async function processAccount(account: FTAccount): Promise<void> {
 // ============================================================================
 
 async function processOrder(order: FTOrder): Promise<void> {
+  // Validate required fields
+  if (!order.id || typeof order.id !== 'string') {
+    console.error('[FTProcessor] Order missing required field: id');
+    metrics.records_skipped++;
+    return;
+  }
+
+  if (!order.account_id || typeof order.account_id !== 'string') {
+    console.error('[FTProcessor] Order missing required field: account_id');
+    metrics.records_skipped++;
+    return;
+  }
+
+  // Validate date fields
+  if (!isValidISODate(order.order_date)) {
+    console.error(`[FTProcessor] Order ${order.id} has invalid order_date: ${order.order_date}`);
+    metrics.records_skipped++;
+    return;
+  }
+
   const accountId = order.account_id;
 
   // Find supporter by FT account ID
@@ -291,12 +436,17 @@ async function processOrder(order: FTOrder): Promise<void> {
   if (!supporter) {
     // Try to create supporter from order data
     console.log(`Supporter not found for FT account ${accountId}, attempting to create`);
+    const email = sanitizeString(order.email);
     await processAccount({
       id: accountId,
-      uuid: order.account_uuid,
-      email: order.email,
-      first_name: order.first_name,
-      second_name: order.second_name,
+      uuid: order.account_uuid || '',
+      email: email || '',
+      first_name: order.first_name || '',
+      second_name: order.second_name || '',
+      more_info: '',
+      more_info2: '',
+      added: '',
+      archived: 0,
     });
     supporter = await findSupporterByFTAccountId(accountId);
   }
@@ -328,7 +478,7 @@ async function processOrder(order: FTOrder): Promise<void> {
   }
 
   // Parse amount - FT returns it as a string
-  const amount = order.order_amount ? parseFloat(order.order_amount) : null;
+  const amount = safeParseFloat(order.order_amount);
 
   // Create TicketPurchase event with rich FT detail
   await eventRepo.create({
@@ -372,6 +522,26 @@ async function processOrder(order: FTOrder): Promise<void> {
 // ============================================================================
 
 async function processEntry(entry: FTStadiumEntry): Promise<void> {
+  // Validate required fields
+  if (!entry.account_id || typeof entry.account_id !== 'string') {
+    console.error('[FTProcessor] Entry missing required field: account_id');
+    metrics.records_skipped++;
+    return;
+  }
+
+  if (!entry.barcode_ean13 || typeof entry.barcode_ean13 !== 'string') {
+    console.error('[FTProcessor] Entry missing required field: barcode_ean13');
+    metrics.records_skipped++;
+    return;
+  }
+
+  // Validate event_date if scan_datetime is missing
+  if (!entry.scan_datetime && !isValidISODate(entry.event_date)) {
+    console.error(`[FTProcessor] Entry has invalid event_date: ${entry.event_date}`);
+    metrics.records_skipped++;
+    return;
+  }
+
   const accountId = entry.account_id;
 
   // Find supporter by FT account ID
@@ -383,8 +553,9 @@ async function processEntry(entry: FTStadiumEntry): Promise<void> {
   }
 
   // Create unique external ID from barcode + scan time
-  const uniqueId = entry.scan_datetime
-    ? `ft-entry-${entry.barcode_ean13}-${entry.scan_datetime}`
+  const scanDateTime = sanitizeString(entry.scan_datetime);
+  const uniqueId = scanDateTime
+    ? `ft-entry-${entry.barcode_ean13}-${scanDateTime}`
     : `ft-entry-${entry.barcode_ean13}`;
 
   const existingEvent = await eventRepo.findByExternalId('futureticketing', uniqueId);
@@ -394,12 +565,24 @@ async function processEntry(entry: FTStadiumEntry): Promise<void> {
     return;
   }
 
+  // Determine event time - prefer scan_datetime, fallback to event_date
+  let eventTime: Date;
+  if (scanDateTime && isValidISODate(scanDateTime)) {
+    eventTime = new Date(scanDateTime);
+  } else if (isValidISODate(entry.event_date)) {
+    eventTime = new Date(entry.event_date);
+  } else {
+    console.error(`[FTProcessor] Entry has invalid dates: scan_datetime=${scanDateTime}, event_date=${entry.event_date}`);
+    metrics.records_skipped++;
+    return;
+  }
+
   // Create StadiumEntry event
   await eventRepo.create({
     supporter_id: supporter.supporter_id,
     source_system: 'futureticketing',
     event_type: 'StadiumEntry',
-    event_time: entry.scan_datetime ? new Date(entry.scan_datetime) : new Date(entry.event_date),
+    event_time: eventTime,
     external_id: uniqueId,
     amount: null,
     currency: null,

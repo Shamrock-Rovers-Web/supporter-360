@@ -26,8 +26,8 @@ export interface FTAccount {
   title: string | null;
   first_name: string | null;
   second_name: string | null;
-  more_info: number;
-  more_info2: number;
+  more_info: string | null;  // API returns string or null
+  more_info2: string | null; // API returns string or null
   added: string;
   archived: number;
 }
@@ -88,33 +88,33 @@ export interface FTOrder {
   status: string;
   order_date: string;
   order_email: string;
-  email: string;
+  email: string | null; // Can be null in API
   order_amount: string;
   title: string | null;
-  first_name: string;
-  second_name: string;
-  address1: string;
-  address2: string;
-  address3: string;
-  address4: string;
-  address5: string;
-  address6: string;
-  county: string;
-  postcode: string;
-  country: string;
-  phone: string;
-  payment_type: string;
-  payment_id: string;
-  terms_accepted: string;
-  more_info: string;
-  more_info2: string;
+  first_name: string | null; // Can be null
+  second_name: string | null; // Can be null
+  address1: string | null;
+  address2: string | null;
+  address3: string | null;
+  address4: string | null;
+  address5: string | null;
+  address6: string | null;
+  county: string | null;
+  postcode: string | null;
+  country: string | null;
+  phone: string | null;
+  payment_type: string | null;
+  payment_id: string | null;
+  terms_accepted: string | null;
+  more_info: string | null;
+  more_info2: string | null;
   comment: string | null;
   edited_date: string | null;
-  sales_channel_id: string;
+  sales_channel_id: string | null;
   legacy_id: string | null;
   metadata: string | null;
-  timezone: string;
-  order_timestamp_utc: number;
+  timezone: string | null;
+  order_timestamp_utc: number | null;
   detail: FTOrderDetail[];
   extra_field?: FTOrderExtraField[];
 }

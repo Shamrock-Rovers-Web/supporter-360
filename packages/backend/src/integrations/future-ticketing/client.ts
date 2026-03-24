@@ -19,6 +19,79 @@ import type {
   FTStadiumEntry,
 } from './types.js';
 
+/**
+ * Validation utilities for Future Ticketing API responses
+ */
+interface ValidationResult {
+  valid: boolean;
+  errors: string[];
+  warnings: string[];
+}
+
+/**
+ * Validate FT API response structure
+ */
+function validateApiResponse<T>(response: unknown, endpoint: string): ValidationResult {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+
+  if (!response || typeof response !== 'object') {
+    errors.push(`${endpoint}: Response is not an object`);
+    return { valid: false, errors, warnings };
+  }
+
+  const resp = response as Record<string, unknown>;
+
+  // Check for data array
+  if (!resp.data || !Array.isArray(resp.data)) {
+    errors.push(`${endpoint}: Missing or invalid 'data' array`);
+  }
+
+  // Check for pagination fields (optional but should exist)
+  if (resp.currentpage !== null && resp.currentpage !== undefined && typeof resp.currentpage !== 'number') {
+    warnings.push(`${endpoint}: 'currentpage' is not a number`);
+  }
+
+  if (resp.limit !== null && resp.limit !== undefined && typeof resp.limit !== 'string') {
+    warnings.push(`${endpoint}: 'limit' is not a string`);
+  }
+
+  if (resp.total !== null && resp.total !== undefined && typeof resp.total !== 'string') {
+    warnings.push(`${endpoint}: 'total' is not a string`);
+  }
+
+  return {
+    valid: errors.length === 0,
+    errors,
+    warnings,
+  };
+}
+
+/**
+ * Safe parseInt with fallback
+ */
+function safeParseInt(value: unknown, fallback: number): number {
+  if (typeof value === 'number') {
+    return Math.floor(value);
+  }
+  if (typeof value === 'string') {
+    const parsed = parseInt(value, 10);
+    return isNaN(parsed) ? fallback : parsed;
+  }
+  return fallback;
+}
+
+/**
+ * Validate and parse pagination info
+ */
+function parsePaginationInfo(response: FTApiResponse<unknown>) {
+  const currentPage = safeParseInt(response.currentpage, 1);
+  const limit = safeParseInt(response.limit, 20);
+  const total = safeParseInt(response.total, 0);
+
+  return { currentPage, limit, total };
+}
+
 export interface FutureTicketingClientOptions {
   timeout?: number;
   retryAttempts?: number;
@@ -486,6 +559,25 @@ export class FutureTicketingClient {
 
         const data = await response.json() as T;
 
+        // Validate API response structure for paginated endpoints
+        if (endpoint.includes('/account') || endpoint.includes('/order') || endpoint.includes('/product') || endpoint.includes('/event')) {
+          const validation = validateApiResponse(data, endpoint);
+
+          // Log warnings but don't fail
+          if (validation.warnings.length > 0) {
+            console.warn('[FTClient] API response validation warnings:', validation.warnings);
+          }
+
+          // Fail on critical errors
+          if (!validation.valid) {
+            console.error('[FTClient] API response validation errors:', validation.errors);
+            throw new FutureTicketingApiError(
+              `Invalid API response structure: ${validation.errors.join(', ')}`,
+              response.status
+            );
+          }
+        }
+
         return data;
       } catch (error) {
         lastError = error as Error;
@@ -570,6 +662,9 @@ export function createFutureTicketingClient(): FutureTicketingClient {
     privateKey,
   });
 }
+
+// Export validation utilities
+export { validateApiResponse, safeParseInt, parsePaginationInfo };
 
 // Export types
 export type {

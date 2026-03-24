@@ -15,7 +15,7 @@
 import { ScheduledEvent } from 'aws-lambda';
 import { SQSClient, SendMessageBatchCommand } from '@aws-sdk/client-sqs';
 import { query } from '../../db/connection';
-import { createFutureTicketingClient } from '../../integrations/future-ticketing';
+import { createFutureTicketingClient, parsePaginationInfo } from '../../integrations/future-ticketing';
 import type { FTAccount, FTOrder, FTStadiumEntry } from '../../integrations/future-ticketing/types';
 
 // FTCustomer is an alias for FTAccount for backwards compatibility
@@ -162,23 +162,33 @@ async function pollCustomers(since: string | null): Promise<{
 
     // Extract all pages for initial sync
     let allAccounts = response.data || [];
-    let currentPage = response.currentpage || 1;
-    const limit = parseInt(response.limit || '20', 10);
-    const total = parseInt(response.total || '0', 0);
+    const { currentPage, limit, total } = parsePaginationInfo(response);
 
     // If we have no checkpoint (first run), fetch all accounts up to a reasonable limit
-    if (!since && total > limit * 10) {
-      console.warn(`[FTPoller] First run would fetch ${total} accounts, limiting to ${limit * 10}`);
+    const maxPages = 100; // Increased from 10
+    if (!since && total > limit * maxPages) {
+      console.warn(`[FTPoller] First run would fetch ${total} accounts, limiting to ${limit * maxPages}`);
     }
 
     // Fetch remaining pages if needed
-    while (currentPage * limit < total && currentPage < 10) {
-      currentPage++;
-      const nextPage = since
-        ? await ftClient.getAccounts({ updatedSince: toApiDate(since), page: currentPage, expand: ['address', 'account_category'] })
-        : await ftClient.getAccounts({ page: currentPage });
-      if (nextPage.data?.length) {
-        allAccounts = allAccounts.concat(nextPage.data);
+    let pageCount = currentPage;
+    while (pageCount * limit < total && pageCount < maxPages) {
+      pageCount++;
+      try {
+        const nextPage = since
+          ? await ftClient.getAccounts({ updatedSince: toApiDate(since), page: pageCount, expand: ['address', 'account_category'] })
+          : await ftClient.getAccounts({ page: pageCount });
+        if (nextPage.data?.length) {
+          allAccounts = allAccounts.concat(nextPage.data);
+        } else {
+          // No data on this page, stop pagination
+          console.warn(`[FTPoller] No data on page ${pageCount}, stopping pagination`);
+          break;
+        }
+      } catch (error) {
+        console.error(`[FTPoller] Error fetching page ${pageCount}:`, error);
+        // Continue with what we have rather than failing completely
+        break;
       }
     }
 
@@ -218,18 +228,26 @@ async function pollOrders(since: string | null): Promise<{
     let page = 1;
     let hasMore = true;
 
-    while (hasMore && page <= 50) {
-      const response = await ftClient.getOrdersByDate(startDate, endDate, { page, validOrder: true });
-      if (response.data?.length) {
-        allOrders = allOrders.concat(response.data);
-      }
+    while (hasMore && page <= 100) {
+      try {
+        const response = await ftClient.getOrdersByDate(startDate, endDate, { page, validOrder: true });
+        if (response.data?.length) {
+          allOrders = allOrders.concat(response.data);
+        } else {
+          // No data on this page, stop pagination
+          console.warn(`[FTPoller] No orders on page ${page}, stopping pagination`);
+          break;
+        }
 
-      // Check if there are more pages
-      const currentPage = response.currentpage || page;
-      const limit = parseInt(response.limit || '20', 10);
-      const total = parseInt(response.total || '0', 10);
-      hasMore = currentPage * limit < total;
-      page++;
+        // Check if there are more pages
+        const { currentPage, limit, total } = parsePaginationInfo(response);
+        hasMore = currentPage * limit < total;
+        page++;
+      } catch (error) {
+        console.error(`[FTPoller] Error fetching order page ${page}:`, error);
+        // Continue with what we have rather than failing completely
+        break;
+      }
     }
 
     return { orders: allOrders, errors };
