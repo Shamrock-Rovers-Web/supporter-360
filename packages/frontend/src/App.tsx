@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Link, useLocation } from 'react-router-do
 import { Search } from './pages/Search'
 import { Profile } from './pages/Profile'
 import { AdminPage } from './pages/AdminPage'
+import { PasswordGate } from './components/PasswordGate'
 
 // Premium Header Component
 function Header() {
@@ -109,35 +110,37 @@ function Breadcrumbs() {
 
 function App() {
   return (
-    <BrowserRouter>
-      <div className="min-h-screen bg-slate-50 flex flex-col">
-        <Header />
+    <PasswordGate>
+      <BrowserRouter>
+        <div className="min-h-screen bg-slate-50 flex flex-col">
+          <Header />
 
-        <main className="flex-1 container mx-auto px-4 py-6">
-          <Breadcrumbs />
-          <Routes>
-            <Route path="/" element={<Search />} />
-            <Route path="/supporters/:id" element={<Profile />} />
-            <Route path="/admin" element={<AdminPage />} />
-          </Routes>
-        </main>
+          <main className="flex-1 container mx-auto px-4 py-6">
+            <Breadcrumbs />
+            <Routes>
+              <Route path="/" element={<Search />} />
+              <Route path="/supporters/:id" element={<Profile />} />
+              <Route path="/admin" element={<AdminPage />} />
+            </Routes>
+          </main>
 
-        {/* Premium Footer */}
-        <footer className="bg-white border-t border-slate-200 mt-auto">
-          <div className="container mx-auto px-4 py-4">
-            <div className="flex flex-col sm:flex-row items-center justify-between text-sm text-slate-500">
-              <p>&copy; {new Date().getFullYear()} Shamrock Rovers FC. Internal use only.</p>
-              <div className="flex items-center space-x-4 mt-2 sm:mt-0">
-                <span className="flex items-center">
-                  <span className="w-2 h-2 bg-emerald-500 rounded-full mr-2" />
-                  v1.0.0
-                </span>
+          {/* Premium Footer */}
+          <footer className="bg-white border-t border-slate-200 mt-auto">
+            <div className="container mx-auto px-4 py-4">
+              <div className="flex flex-col sm:flex-row items-center justify-between text-sm text-slate-500">
+                <p>&copy; {new Date().getFullYear()} Shamrock Rovers FC. Internal use only.</p>
+                <div className="flex items-center space-x-4 mt-2 sm:mt-0">
+                  <span className="flex items-center">
+                    <span className="w-2 h-2 bg-emerald-500 rounded-full mr-2" />
+                    v1.0.0
+                  </span>
+                </div>
               </div>
             </div>
-          </div>
-        </footer>
-      </div>
-    </BrowserRouter>
+          </footer>
+        </div>
+      </BrowserRouter>
+    </PasswordGate>
   )
 }
 

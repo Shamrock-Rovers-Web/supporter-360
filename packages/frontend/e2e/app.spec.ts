@@ -12,8 +12,8 @@ test.describe('Supporter 360 - Search Page', () => {
     // Check for the main heading
     await expect(page.getByRole('heading', { name: /find your supporters/i })).toBeVisible();
 
-    // Check for Shamrock Rovers branding
-    await expect(page.getByText('Shamrock Rovers FC')).toBeVisible();
+    // Check for Shamrock Rovers branding (use first() to handle multiple matches)
+    await expect(page.getByText('Shamrock Rovers FC').first()).toBeVisible();
 
     // Check for search input placeholder
     await expect(page.getByPlaceholder(/search by name, email, or phone/i)).toBeVisible();
@@ -116,12 +116,13 @@ test.describe('Supporter 360 - Admin Page', () => {
   });
 
   test('displays admin panel heading', async ({ page }) => {
-    await expect(page.getByRole('heading', { name: /admin/i })).toBeVisible();
+    // Check for merge supporters heading (which is the main admin content)
+    await expect(page.getByRole('heading', { name: /merge supporters/i })).toBeVisible();
   });
 
   test('displays merge supporters section', async ({ page }) => {
-    // Check for merge functionality
-    await expect(page.getByText(/merge/i)).toBeVisible();
+    // Check for merge functionality description
+    await expect(page.getByText(/duplicate/i)).toBeVisible();
   });
 });
 
@@ -129,19 +130,19 @@ test.describe('Supporter 360 - Brand Colors', () => {
   test('uses Shamrock Rovers brand colors', async ({ page }) => {
     await page.goto('/');
 
-    // Check for green (brand-green-500/600)
-    const heroSection = page.locator('.bg-gradient-to-br');
+    // Check for green gradient in hero section
+    const heroSection = page.locator('.from-brand-green-500');
     await expect(heroSection).toBeVisible();
 
-    // The CSS should include brand-green classes
-    const styles = await page.evaluate(() => {
+    // Verify the page loaded with proper styling
+    const bodyStyles = await page.evaluate(() => {
       const computedStyle = getComputedStyle(document.body);
       return {
-        hasStyles: !!computedStyle,
+        hasStyles: !!computedStyle.fontFamily,
       };
     });
 
-    expect(styles.hasStyles).toBe(true);
+    expect(bodyStyles.hasStyles).toBe(true);
   });
 });
 

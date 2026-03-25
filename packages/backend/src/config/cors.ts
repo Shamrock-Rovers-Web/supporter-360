@@ -23,9 +23,8 @@ export const ALLOWED_ORIGINS = [
   // Production S3 static website hosting
   'https://shamrockrovers.ie',
 
-  // S3 static website URL (will be created during deployment)
-  // Format: https://supporter360-frontend-{account}.s3-website-eu-west-1.amazonaws.com
-  // This will be updated after first deployment
+  // S3 static website URL (development/testing)
+  'http://supporter360-frontend-950596328856.s3-website-eu-west-1.amazonaws.com',
 
   // For development only - commented out for production
   // 'http://localhost:3000',
