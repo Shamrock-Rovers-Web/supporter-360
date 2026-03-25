@@ -1,0 +1,125 @@
+{
+  "timestamp": "2026-03-24T19:33:32.272Z",
+  "summary": {
+    "passed": 5,
+    "failed": 14,
+    "skipped": 0,
+    "total": 19
+  },
+  "results": [
+    {
+      "name": "Database Endpoint Reachable",
+      "status": "FAIL",
+      "details": "Database supporter360stackv2-supporter360database3a977b01-z5jaoh3fhyvr.cluster-cmfwmmgu7sye.eu-west-1.rds.amazonaws.com:5432 is NOT reachable",
+      "duration": 5014
+    },
+    {
+      "name": "VPC Endpoints Configured",
+      "status": "FAIL",
+      "details": "Missing endpoints - Secrets Manager: ✗, SQS: ✓, S3: ✓",
+      "duration": 1274
+    },
+    {
+      "name": "Supporter360StackV2-ShopifyProcessor - Subnet Placement",
+      "status": "FAIL",
+      "details": "Expected PRIVATE_ISOLATED, found UNKNOWN",
+      "duration": 1050
+    },
+    {
+      "name": "Supporter360StackV2-StripeProcessor - Subnet Placement",
+      "status": "FAIL",
+      "details": "Expected PRIVATE_ISOLATED, found UNKNOWN",
+      "duration": 1056
+    },
+    {
+      "name": "Supporter360StackV2-GoCardlessProcessor - Subnet Placement",
+      "status": "FAIL",
+      "details": "Expected PUBLIC, found UNKNOWN",
+      "duration": 1054
+    },
+    {
+      "name": "Supporter360StackV2-FutureTicketingProcessor - Subnet Placement",
+      "status": "FAIL",
+      "details": "Expected PRIVATE_ISOLATED, found UNKNOWN",
+      "duration": 1056
+    },
+    {
+      "name": "Supporter360StackV2-MailchimpProcessor - Subnet Placement",
+      "status": "FAIL",
+      "details": "Expected PRIVATE_ISOLATED, found UNKNOWN",
+      "duration": 1038
+    },
+    {
+      "name": "Supporter360StackV2-MailchimpSyncer - Subnet Placement",
+      "status": "FAIL",
+      "details": "Expected PUBLIC, found UNKNOWN",
+      "duration": 1035
+    },
+    {
+      "name": "Supporter360StackV2-SearchHandler - Subnet Placement",
+      "status": "FAIL",
+      "details": "Expected PRIVATE_ISOLATED, found UNKNOWN",
+      "duration": 1040
+    },
+    {
+      "name": "Supporter360StackV2-ProfileHandler - Subnet Placement",
+      "status": "FAIL",
+      "details": "Expected PRIVATE_ISOLATED, found UNKNOWN",
+      "duration": 1060
+    },
+    {
+      "name": "Supporter360StackV2-TimelineHandler - Subnet Placement",
+      "status": "FAIL",
+      "details": "Expected PRIVATE_ISOLATED, found UNKNOWN",
+      "duration": 1036
+    },
+    {
+      "name": "Supporter360StackV2-MergeHandler - Subnet Placement",
+      "status": "FAIL",
+      "details": "Expected PRIVATE_ISOLATED, found UNKNOWN",
+      "duration": 1058
+    },
+    {
+      "name": "Secret supporter360/shopify",
+      "status": "PASS",
+      "details": "Secret exists and is accessible",
+      "duration": 1015
+    },
+    {
+      "name": "Secret supporter360/stripe",
+      "status": "PASS",
+      "details": "Secret exists and is accessible",
+      "duration": 1019
+    },
+    {
+      "name": "Secret supporter360/gocardless",
+      "status": "PASS",
+      "details": "Secret exists and is accessible",
+      "duration": 1025
+    },
+    {
+      "name": "Secret supporter360/future-ticketing",
+      "status": "PASS",
+      "details": "Secret exists and is accessible",
+      "duration": 1025
+    },
+    {
+      "name": "Secret supporter360/mailchimp",
+      "status": "PASS",
+      "details": "Secret exists and is accessible",
+      "duration": 1103
+    },
+    {
+      "name": "Supporter360StackV2-GoCardlessProcessor - Internet Access",
+      "status": "FAIL",
+      "details": "Not in PUBLIC subnet - internet access may not work",
+      "duration": 1074
+    },
+    {
+      "name": "Supporter360StackV2-MailchimpSyncer - Internet Access",
+      "status": "FAIL",
+      "details": "Not in PUBLIC subnet - internet access may not work",
+      "duration": 1072
+    }
+  ]
+}

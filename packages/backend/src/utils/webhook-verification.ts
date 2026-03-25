@@ -109,25 +109,33 @@ export function verifyGoCardlessWebhook(
 }
 
 /**
- * Simple hash-based verification for Mailchimp webhooks
- * Note: Mailchimp webhooks are form-urlencoded and have limited security options
- * This uses the configured webhook secret if available
- * @param payload - The parsed webhook data
+ * Verify Mailchimp webhook signature using HMAC SHA-256
+ * Mailchimp sends the signature in the X-Mailchimp-Signature header
+ * @param rawBody - Raw request body as string (form-urlencoded)
+ * @param signature - Base64-encoded HMAC from X-Mailchimp-Signature header
  * @param webhookSecret - Mailchimp webhook secret
- * @returns true if verification passes
+ * @returns true if signature is valid
  */
 export function verifyMailchimpWebhook(
-  payload: Record<string, unknown>,
+  rawBody: string,
+  signature: string,
   webhookSecret: string
 ): boolean {
-  // Mailchimp webhooks don't have strong signature verification
-  // We can check for expected fields and optionally validate against a known secret
-  // in the payload if configured
-  if (!payload.type || !payload.data) {
+  if (!signature || !webhookSecret) {
     return false;
   }
 
-  // If a secret is configured, we could add additional validation here
-  // For now, basic structure validation
-  return true;
+  const hmac = createHmac('sha256', webhookSecret);
+  hmac.update(rawBody, 'utf8');
+  const digest = hmac.digest('base64');
+
+  // Use timing-safe comparison to prevent timing attacks
+  const digestBuffer = Buffer.from(digest, 'utf-8');
+  const signatureBuffer = Buffer.from(signature, 'utf-8');
+
+  if (digestBuffer.length !== signatureBuffer.length) {
+    return false;
+  }
+
+  return timingSafeEqual(digestBuffer, signatureBuffer);
 }

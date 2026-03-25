@@ -1,0 +1,24 @@
+{
+  "id": "test_order_001",
+  "admin_graphql_api_id": "gid://shopify/Order/123456789",
+  "created_at": "2026-03-24T10:00:00Z",
+  "updated_at": "2026-03-24T10:00:00Z",
+  "email": "test@example.com",
+  "phone": "+353123456789",
+  "customer": {
+    "id": 123456789,
+    "email": "test@example.com",
+    "phone": "+353123456789",
+    "first_name": "Test",
+    "last_name": "Customer"
+  },
+  "line_items": [
+    {
+      "id": 987654321,
+      "product_id": 111111,
+      "title": "Test Product"
+    }
+  ],
+  "financial_status": "paid",
+  "total_price": "100.00"
+}

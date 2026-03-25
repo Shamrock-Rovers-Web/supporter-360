@@ -11,7 +11,8 @@
     "test": "npm run test --workspaces",
     "lint": "npm run lint --workspaces",
     "dev:frontend": "npm run dev --workspace=@supporter-360/frontend",
-    "validate": "./scripts/validate-build.sh"
+    "validate": "./scripts/validate-build.sh",
+    "validate-security": "ts-node scripts/security-validation.ts"
   },
   "devDependencies": {
     "@playwright/test": "^1.58.0",

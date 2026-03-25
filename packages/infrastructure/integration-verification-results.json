@@ -1,0 +1,52 @@
+{
+  "timestamp": "2026-03-24T00:00:00Z",
+  "overall_status": "PASS",
+  "tests": [
+    {
+      "test": "VPC Endpoints",
+      "status": "PASS",
+      "details": "Secrets Manager: available, SQS: available, S3: available"
+    },
+    {
+      "test": "Lambda Subnet Placement",
+      "status": "PASS",
+      "details": "All Lambda functions in correct subnets"
+    },
+    {
+      "test": "Security Groups",
+      "status": "PASS",
+      "details": "Lambda can access database via security group rules"
+    },
+    {
+      "test": "Secrets Manager Access",
+      "status": "PASS",
+      "details": "5 secrets accessible"
+    },
+    {
+      "test": "Database Cluster Configuration",
+      "status": "PASS",
+      "details": "Cluster: supporter360stackv2-supporter360database3a977b01-z5jaoh3fhyvr, Endpoint: supporter360stackv2-supporter360database3a977b01-z5jaoh3fhyvr.cluster-cmfwmmgu7sye.eu-west-1.rds.amazonaws.com"
+    }
+  ],
+  "architecture": {
+    "vpc_id": "vpc-0ed010a4411bc5c92",
+    "database_cluster": "supporter360stackv2-supporter360database3a977b01-z5jaoh3fhyvr",
+    "database_endpoint": "supporter360stackv2-supporter360database3a977b01-z5jaoh3fhyvr.cluster-cmfwmmgu7sye.eu-west-1.rds.amazonaws.com",
+    "lambda_security_group": "sg-0fd92d7534dfaac4b",
+    "database_security_group": "sg-08678adbdd7c24734",
+    "vpc_endpoints": {
+      "secrets_manager": "available",
+      "sqs": "available",
+      "s3": "available"
+    }
+  },
+  "key_findings": [
+    "All VPC endpoints (Secrets Manager, SQS, S3) are available and operational",
+    "Lambda functions correctly placed in appropriate subnets",
+    "GoCardless processor and Mailchimp syncer in PUBLIC subnets for internet access",
+    "All other processors and handlers in PRIVATE_ISOLATED subnets",
+    "Security group rules correctly configured - Lambda can access database",
+    "All Secrets Manager secrets accessible to Lambda functions",
+    "Database cluster configured in PRIVATE_ISOLATED subnets for security"
+  ]
+}

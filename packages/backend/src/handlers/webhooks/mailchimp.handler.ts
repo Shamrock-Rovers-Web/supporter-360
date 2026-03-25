@@ -9,12 +9,43 @@ const s3Client = new S3Client({});
 
 const QUEUE_URL = process.env.MAILCHIMP_QUEUE_URL!;
 const BUCKET_NAME = process.env.RAW_PAYLOADS_BUCKET!;
-const MAILCHIMP_WEBHOOK_SECRET = process.env.MAILCHIMP_WEBHOOK_SECRET;
+const MAILCHIMP_WEBHOOK_SECRET = process.env.MAILCHIMP_WEBHOOK_SECRET!;
+
+if (!MAILCHIMP_WEBHOOK_SECRET) {
+  throw new Error('MAILCHIMP_WEBHOOK_SECRET environment variable is required');
+}
 
 export const handler = async (
   event: APIGatewayProxyEvent
 ): Promise<APIGatewayProxyResult> => {
   try {
+    // Verify webhook signature first
+    const mailchimpSignature = event.headers['X-Mailchimp-Signature'] || event.headers['x-mailchimp-signature'];
+
+    if (!mailchimpSignature) {
+      console.warn('Mailchimp webhook missing signature');
+      return {
+        statusCode: 401,
+        body: JSON.stringify({ error: 'Missing signature' }),
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token',
+        },
+      };
+    }
+
+    if (!verifyMailchimpWebhook(event.body || '', mailchimpSignature, MAILCHIMP_WEBHOOK_SECRET)) {
+      console.warn('Mailchimp webhook signature verification failed');
+      return {
+        statusCode: 401,
+        body: JSON.stringify({ error: 'Invalid signature' }),
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token',
+        },
+      };
+    }
+
     const body = event.body || '';
     const params = new URLSearchParams(body);
 
@@ -42,20 +73,6 @@ export const handler = async (
       return {
         statusCode: 400,
         body: JSON.stringify({ error: 'Missing type' }),
-        headers: {
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token',
-        },
-      };
-    }
-
-    // Verify webhook payload structure
-    const payload = { type, data };
-    if (!verifyMailchimpWebhook(payload, MAILCHIMP_WEBHOOK_SECRET || '')) {
-      console.warn('Mailchimp webhook payload verification failed');
-      return {
-        statusCode: 401,
-        body: JSON.stringify({ error: 'Invalid payload' }),
         headers: {
           'Access-Control-Allow-Origin': '*',
           'Access-Control-Allow-Headers': 'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token',

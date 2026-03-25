@@ -10,3 +10,4 @@
 export * from './supporter.repository';
 export * from './event.repository';
 export * from './membership.repository';
+export * from './audit.repository';

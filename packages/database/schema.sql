@@ -164,3 +164,65 @@ CREATE TABLE IF NOT EXISTS supporter_mailchimp_aggregates (
 
 CREATE TRIGGER update_supporter_mailchimp_aggregates_updated_at BEFORE UPDATE ON supporter_mailchimp_aggregates
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- GDPR Consent Tracking Table
+CREATE TABLE IF NOT EXISTS consent_record (
+    id SERIAL PRIMARY KEY,
+    supporter_id UUID NOT NULL REFERENCES supporter(supporter_id) ON DELETE CASCADE,
+    consent_type VARCHAR(100) NOT NULL, -- marketing, analytics, cookies, email_communications
+    granted BOOLEAN NOT NULL,
+    granted_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    revoked_at TIMESTAMP WITH TIME ZONE,
+    ip_address VARCHAR(45), -- IPv6 compatible
+    user_agent TEXT,
+    consent_document_version VARCHAR(50),
+    metadata JSONB DEFAULT '{}',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(supporter_id, consent_type, granted_at)
+);
+
+-- Data Retention Policy Table
+CREATE TABLE IF NOT EXISTS data_retention_policy (
+    id SERIAL PRIMARY KEY,
+    policy_name VARCHAR(100) UNIQUE NOT NULL,
+    entity_type VARCHAR(100) NOT NULL, -- supporter, event, mailchimp_membership
+    retention_period_months INTEGER NOT NULL,
+    anonymize_after BOOLEAN DEFAULT true,
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- GDPR Data Deletion Request Table
+CREATE TABLE IF NOT EXISTS data_deletion_request (
+    id SERIAL PRIMARY KEY,
+    supporter_id UUID NOT NULL REFERENCES supporter(supporter_id) ON DELETE CASCADE,
+    requested_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    requested_by VARCHAR(100), -- user_id or 'self'
+    status VARCHAR(50) DEFAULT 'pending', -- pending, in_progress, completed, failed
+    completed_at TIMESTAMP WITH TIME ZONE,
+    failure_reason TEXT,
+    metadata JSONB DEFAULT '{}',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Indexes for GDPR tables
+CREATE INDEX idx_consent_record_supporter_id ON consent_record(supporter_id);
+CREATE INDEX idx_consent_record_type ON consent_record(consent_type);
+CREATE INDEX idx_consent_record_granted_at ON consent_record(granted_at DESC);
+
+CREATE INDEX idx_data_deletion_request_supporter_id ON data_deletion_request(supporter_id);
+CREATE INDEX idx_data_deletion_request_status ON data_deletion_request(status);
+CREATE INDEX idx_data_deletion_request_requested_at ON data_deletion_request(requested_at DESC);
+
+-- Trigger for data_retention_policy updated_at
+CREATE TRIGGER update_data_retention_policy_updated_at BEFORE UPDATE ON data_retention_policy
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Insert default retention policies
+INSERT INTO data_retention_policy (policy_name, entity_type, retention_period_months, anonymize_after) VALUES
+('supporter_basic_data', 'supporter', 84, true), -- 7 years for supporter basic data
+('event_data', 'event', 84, true), -- 7 years for transaction/event data
+('consent_records', 'consent_record', 120, true), -- 10 years for consent records
+('audit_logs', 'audit_log', 120, false); -- 10 years for audit logs, no anonymization
+

@@ -286,7 +286,7 @@ export async function warmupConnection(): Promise<void> {
 // Connection Pool Singleton
 // ============================================================================
 
-let pool: Pool | null = null;
+export let pool: Pool | null = null;
 
 /**
  * Gets or creates the PostgreSQL connection pool.
