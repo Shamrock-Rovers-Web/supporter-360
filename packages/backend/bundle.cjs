@@ -26,6 +26,12 @@ const entryPoints = [
   { source: 'handlers/api/timeline.handler', target: 'handlers/api/timeline' },
   { source: 'handlers/api/admin/merge.handler', target: 'handlers/api/admin/merge' },
 
+  // Admin Handlers
+  { source: 'handlers/admin/verify-db.handler', target: 'handlers/admin/verify-db' },
+
+  // Authorizer
+  { source: 'handlers/authorizer', target: 'handlers/authorizer' },
+
   // Scheduled Handlers
   { source: 'handlers/scheduled/future-ticketing-poller.handler', target: 'handlers/scheduled/future-ticketing-poller' },
   { source: 'handlers/scheduled/mailchimp-syncer.handler', target: 'handlers/scheduled/mailchimp-syncer' },

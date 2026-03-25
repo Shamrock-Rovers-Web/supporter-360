@@ -94,3 +94,19 @@ export function forbiddenResponse(requestOrigin?: string): {
 } {
   return errorResponse('Forbidden', 403, 'FORBIDDEN', undefined, requestOrigin);
 }
+
+/**
+ * Simple AWS Lambda response helper
+ */
+export function awsLambdaResponse(statusCode: number, body: any, requestOrigin?: string): {
+  statusCode: number;
+  body: string;
+  headers: Record<string, string>;
+} {
+  const headers = getCorsHeaders(requestOrigin);
+  return {
+    statusCode,
+    body: JSON.stringify(body),
+    headers,
+  };
+}

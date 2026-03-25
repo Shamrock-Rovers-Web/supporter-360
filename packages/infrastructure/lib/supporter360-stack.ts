@@ -646,7 +646,10 @@ export class Supporter360Stack extends cdk.Stack {
       vpc,
       vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
       securityGroups: [lambdaSecurityGroup],
-      environment: commonEnvironment,
+      environment: {
+        ...commonEnvironment,
+        DB_SSL_SKIP_VERIFY: 'true', // Authorizer doesn't need SSL cert verification
+      },
       description: 'API Gateway Lambda authorizer for API key validation',
     });
 

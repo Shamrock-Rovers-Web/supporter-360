@@ -154,7 +154,7 @@ INSERT INTO config (key, value, description) VALUES
 ('annual_validity_days', '365', 'Validity period in days for annual membership'),
 ('tag_sync_enabled', 'true', 'Enable Mailchimp tag synchronization'),
 ('reconciliation_lookback_hours', '24', 'Hours to look back during reconciliation'),
-('api_keys', '{"staff-key-prod-001": {"role": "staff", "name": "Production Staff"}, "admin-key-prod-001": {"role": "admin", "name": "Production Admin"}}', 'API keys for frontend authentication'),
+('api_keys', '{"srfc-staff-2025": {"role": "staff", "name": "SRFC Staff"}, "srfc-admin-2025": {"role": "admin", "name": "SRFC Admin"}}', 'API keys for frontend authentication'),
 ('stripe_api_key', '"sk_live_YOUR_STRIPE_KEY_HERE"', 'Stripe API key'),
 ('future_ticketing_api_key', '"YOUR_FT_KEY_HERE"', 'Future Ticketing API key'),
 ('future_ticketing_api_url', '"https://api.futureticketing.com"', 'Future Ticketing API URL'),
