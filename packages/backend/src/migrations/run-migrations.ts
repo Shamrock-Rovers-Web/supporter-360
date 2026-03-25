@@ -165,6 +165,22 @@ INSERT INTO config (key, value, description) VALUES
 ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW();
 `;
 
+const seedData = `
+-- Insert test supporters for development/testing
+INSERT INTO supporter (name, primary_email, phone, supporter_type, supporter_type_source, linked_ids) VALUES
+('John Gleeson', 'john.gleeson@example.com', '+353 86 123 4567', 'Member', 'auto', '{"shopify": "12345", "futureticketing": "ft-001"}'),
+('Mary Gleeson', 'mary.gleeson@example.com', '+353 86 234 5678', 'Season Ticket Holder', 'auto', '{"stripe": "cus_abc123"}'),
+('Patrick Murphy', 'patrick.murphy@example.com', '+353 87 345 6789', 'Ticket Buyer', 'auto', '{}'),
+('Sarah O''Brien', 'sarah.obrien@example.com', '+353 88 456 7890', 'Member', 'auto', '{"gocardless": "gc-xyz789"}')
+ON CONFLICT DO NOTHING;
+
+-- Insert membership for John Gleeson
+INSERT INTO membership (supporter_id, tier, cadence, billing_method, status, last_payment_date)
+SELECT supporter_id, 'Full', 'Monthly', 'gocardless', 'Active', NOW() - INTERVAL '15 days'
+FROM supporter WHERE name = 'John Gleeson'
+ON CONFLICT (supporter_id) DO NOTHING;
+`;
+
 // ============================================================================
 // SSL Configuration
 // ============================================================================
@@ -233,6 +249,10 @@ export const handler = async () => {
     // Insert config data
     await client.query(configData);
     console.log('Config data inserted successfully');
+
+    // Insert seed data (test supporters)
+    await client.query(seedData);
+    console.log('Seed data inserted successfully');
 
     return {
       statusCode: 200,

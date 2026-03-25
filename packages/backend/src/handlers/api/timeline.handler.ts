@@ -131,6 +131,8 @@ export const handler = requireAuth(async (
   event: APIGatewayProxyEvent,
   _auth: AuthContext
 ) => {
+  const origin = event.headers.origin || event.headers.Origin;
+
   try {
     const supporterId = event.pathParameters?.id;
 
@@ -138,7 +140,9 @@ export const handler = requireAuth(async (
       return errorResponse(
         'Supporter ID is required',
         400,
-        'MISSING_SUPPORTER_ID'
+        'MISSING_SUPPORTER_ID',
+        undefined,
+        origin
       );
     }
 
@@ -179,13 +183,15 @@ export const handler = requireAuth(async (
         start_date: startDate?.toISOString() || null,
         end_date: endDate?.toISOString() || null,
       },
-    });
+    }, 200, origin);
   } catch (error) {
     if (error instanceof SupporterNotFoundError) {
       return errorResponse(
         'Supporter not found',
         404,
-        'SUPPORTER_NOT_FOUND'
+        'SUPPORTER_NOT_FOUND',
+        undefined,
+        origin
       );
     }
 
@@ -193,7 +199,9 @@ export const handler = requireAuth(async (
     return errorResponse(
       'Failed to retrieve timeline',
       500,
-      'TIMELINE_ERROR'
+      'TIMELINE_ERROR',
+      undefined,
+      origin
     );
   }
 });

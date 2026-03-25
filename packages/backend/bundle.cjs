@@ -28,6 +28,7 @@ const entryPoints = [
 
   // Admin Handlers
   { source: 'handlers/admin/verify-db.handler', target: 'handlers/admin/verify-db' },
+  { source: 'handlers/admin/seed-data.handler', target: 'handlers/admin/seed-data' },
 
   // Authorizer
   { source: 'handlers/authorizer', target: 'handlers/authorizer' },

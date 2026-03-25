@@ -103,11 +103,15 @@ export const handler = requireAuth(async (
   try {
     const parsed = parseQueryParams(event.queryStringParameters as SearchQueryParams);
 
+    const origin = event.headers.origin || event.headers.Origin;
+
     if (!parsed) {
       return errorResponse(
         'Invalid query parameters. q is required, field must be one of: email, name, phone, all',
         400,
-        'INVALID_PARAMETERS'
+        'INVALID_PARAMETERS',
+        undefined,
+        origin
       );
     }
 
@@ -143,13 +147,15 @@ export const handler = requireAuth(async (
       limit,
       offset,
       has_more: offset + results.length < total,
-    });
+    }, 200, origin);
   } catch (error) {
     console.error('Search error:', error);
     return errorResponse(
       'Search failed',
       500,
-      'SEARCH_ERROR'
+      'SEARCH_ERROR',
+      undefined,
+      event.headers.origin || event.headers.Origin
     );
   }
 });

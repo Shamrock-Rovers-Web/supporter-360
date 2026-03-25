@@ -48,6 +48,8 @@ export const handler = requireAuth(async (
   event: APIGatewayProxyEvent,
   _auth: AuthContext
 ) => {
+  const origin = event.headers.origin || event.headers.Origin;
+
   try {
     const supporterId = event.pathParameters?.id;
 
@@ -55,7 +57,9 @@ export const handler = requireAuth(async (
       return errorResponse(
         'Supporter ID is required',
         400,
-        'MISSING_SUPPORTER_ID'
+        'MISSING_SUPPORTER_ID',
+        undefined,
+        origin
       );
     }
 
@@ -66,7 +70,8 @@ export const handler = requireAuth(async (
         'Supporter not found',
         404,
         'SUPPORTER_NOT_FOUND',
-        { supporter_id: supporterId }
+        { supporter_id: supporterId },
+        origin
       );
     }
 
@@ -108,13 +113,15 @@ export const handler = requireAuth(async (
       },
       created_at: profile.created_at.toISOString(),
       updated_at: profile.updated_at.toISOString(),
-    });
+    }, 200, origin);
   } catch (error) {
     if (error instanceof SupporterNotFoundError) {
       return errorResponse(
         'Supporter not found',
         404,
-        'SUPPORTER_NOT_FOUND'
+        'SUPPORTER_NOT_FOUND',
+        undefined,
+        origin
       );
     }
 
@@ -122,7 +129,9 @@ export const handler = requireAuth(async (
     return errorResponse(
       'Failed to retrieve supporter profile',
       500,
-      'PROFILE_ERROR'
+      'PROFILE_ERROR',
+      undefined,
+      origin
     );
   }
 });

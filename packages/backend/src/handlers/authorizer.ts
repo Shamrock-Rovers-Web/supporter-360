@@ -61,8 +61,18 @@ export async function handler(event: APIGatewayTokenAuthorizerEvent): Promise<AP
 
 /**
  * Generate IAM policy for API Gateway
+ * Uses wildcard to allow access to all API methods (cache-friendly)
  */
 function generatePolicy(principalId: string, effect: 'Allow' | 'Deny', resource: string): APIGatewayAuthorizerResult {
+  // Extract the API ID and region from the method ARN to create a wildcard policy
+  // methodArn format: arn:aws:execute-api:region:account-id:api-id/stage/method/resource
+  const arnParts = resource.split(':');
+  const apiGatewayArn = arnParts[5];
+  const [apiId, stage] = apiGatewayArn.split('/');
+
+  // Create a wildcard resource ARN that allows access to all methods
+  const wildcardResource = `arn:aws:execute-api:${arnParts[3]}:${arnParts[4]}:${apiId}/${stage}/*`;
+
   const authResponse: APIGatewayAuthorizerResult = {
     principalId,
     policyDocument: {
@@ -71,7 +81,7 @@ function generatePolicy(principalId: string, effect: 'Allow' | 'Deny', resource:
         {
           Action: 'execute-api:Invoke',
           Effect: effect,
-          Resource: resource,
+          Resource: wildcardResource,
         },
       ],
     },

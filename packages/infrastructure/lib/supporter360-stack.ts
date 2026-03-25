@@ -719,8 +719,7 @@ export class Supporter360Stack extends cdk.Stack {
     // CORS configuration - Production origins only (localhost removed for security)
     const allowedOrigins = [
       'https://shamrockrovers.ie',  // Production domain
-      // S3 static website URL will be added after first deployment
-      // Format: https://supporter360-frontend-{account}.s3-website-eu-west-1.amazonaws.com
+      'http://supporter360-frontend-950596328856.s3-website-eu-west-1.amazonaws.com',  // S3 static website
     ];
 
     const api = new apigateway.RestApi(this, 'Supporter360Api', {

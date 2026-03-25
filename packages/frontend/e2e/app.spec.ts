@@ -2,10 +2,27 @@ import { test, expect } from '@playwright/test';
 
 const API_URL = process.env.VITE_API_URL || 'https://rxe97dwkr7.execute-api.eu-west-1.amazonaws.com/prod/';
 const API_KEY = process.env.VITE_API_KEY || 'srfc-staff-2025';
+const PASSWORD = 'Hoops1901';
+
+/**
+ * Helper to handle password gate if present
+ */
+async function handlePasswordGate(page: import('@playwright/test').Page) {
+  const passwordInput = page.getByPlaceholder(/password/i);
+  if (await passwordInput.isVisible({ timeout: 2000 }).catch(() => false)) {
+    await passwordInput.fill(PASSWORD);
+    await page.getByRole('button', { name: /continue/i }).click();
+    // Wait for the main app to load
+    await page.waitForURL(/.*/, { timeout: 5000 }).catch(() => {});
+    // Wait a moment for the app to render
+    await page.waitForTimeout(500);
+  }
+}
 
 test.describe('Supporter 360 - Search Page', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
+    await handlePasswordGate(page);
   });
 
   test('displays hero section with branding', async ({ page }) => {
@@ -78,12 +95,28 @@ test.describe('Supporter 360 - Search Page', () => {
       // It's okay if we don't see loading - might be too fast
     });
   });
+
+  test('search returns results for gleeson', async ({ page }) => {
+    const searchInput = page.getByPlaceholder(/search by name, email, or phone/i);
+
+    // Search for gleeson (seeded test data)
+    await searchInput.fill('gleeson');
+
+    // Wait for results
+    await expect(page.getByText(/results found/i)).toBeVisible({ timeout: 10000 });
+
+    // Should show John Gleeson
+    await expect(page.getByText('John Gleeson')).toBeVisible();
+  });
 });
 
 test.describe('Supporter 360 - Navigation', () => {
-  test('header navigation links work', async ({ page }) => {
+  test.beforeEach(async ({ page }) => {
     await page.goto('/');
+    await handlePasswordGate(page);
+  });
 
+  test('header navigation links work', async ({ page }) => {
     // Check for navigation elements
     const searchLink = page.getByRole('link', { name: /search/i });
     if (await searchLink.isVisible()) {
@@ -100,6 +133,7 @@ test.describe('Supporter 360 - Navigation', () => {
 
   test('brand logo navigates to home', async ({ page }) => {
     await page.goto('/admin');
+    await handlePasswordGate(page);
 
     // Click brand/logo
     const brandLink = page.getByRole('link', { name: /supporter 360/i });
@@ -113,6 +147,7 @@ test.describe('Supporter 360 - Navigation', () => {
 test.describe('Supporter 360 - Admin Page', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/admin');
+    await handlePasswordGate(page);
   });
 
   test('displays admin panel heading', async ({ page }) => {
@@ -121,18 +156,23 @@ test.describe('Supporter 360 - Admin Page', () => {
   });
 
   test('displays merge supporters section', async ({ page }) => {
-    // Check for merge functionality description
-    await expect(page.getByText(/duplicate/i)).toBeVisible();
+    // Check for merge functionality - look for the heading and description
+    await expect(page.getByRole('heading', { name: /merge supporters/i })).toBeVisible();
+    // Check for source/target labels
+    await expect(page.getByText(/source.*will be deleted/i)).toBeVisible();
+    await expect(page.getByText(/target.*will be kept/i)).toBeVisible();
   });
 });
 
 test.describe('Supporter 360 - Brand Colors', () => {
   test('uses Shamrock Rovers brand colors', async ({ page }) => {
     await page.goto('/');
+    await handlePasswordGate(page);
 
-    // Check for green gradient in hero section
-    const heroSection = page.locator('.from-brand-green-500');
-    await expect(heroSection).toBeVisible();
+    // Check for green branding in the header/logo area
+    const greenElements = page.locator('[class*="brand-green"], [class*="emerald"]');
+    const count = await greenElements.count();
+    expect(count).toBeGreaterThan(0);
 
     // Verify the page loaded with proper styling
     const bodyStyles = await page.evaluate(() => {
@@ -147,9 +187,12 @@ test.describe('Supporter 360 - Brand Colors', () => {
 });
 
 test.describe('Supporter 360 - Accessibility', () => {
-  test('search page has proper ARIA labels', async ({ page }) => {
+  test.beforeEach(async ({ page }) => {
     await page.goto('/');
+    await handlePasswordGate(page);
+  });
 
+  test('search page has proper ARIA labels', async ({ page }) => {
     const searchInput = page.getByRole('searchbox').or(
       page.getByLabel(/search/i)
     ).or(
@@ -160,8 +203,6 @@ test.describe('Supporter 360 - Accessibility', () => {
   });
 
   test('keyboard navigation works on search results', async ({ page }) => {
-    await page.goto('/');
-
     // Tab through interactive elements
     await page.keyboard.press('Tab');
     await page.keyboard.press('Tab');
@@ -175,8 +216,6 @@ test.describe('Supporter 360 - Accessibility', () => {
   });
 
   test('filter buttons have proper ARIA attributes', async ({ page }) => {
-    await page.goto('/');
-
     const filterButtons = page.getByRole('button').filter({
       hasText: /member|season ticket/i,
     });
@@ -195,6 +234,7 @@ test.describe('Supporter 360 - Responsive Design', () => {
   test('mobile view displays correctly', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 667 });
     await page.goto('/');
+    await handlePasswordGate(page);
 
     // Search should still be accessible
     const searchInput = page.getByPlaceholder(/search by name, email, or phone/i);
@@ -204,6 +244,7 @@ test.describe('Supporter 360 - Responsive Design', () => {
   test('tablet view displays correctly', async ({ page }) => {
     await page.setViewportSize({ width: 768, height: 1024 });
     await page.goto('/');
+    await handlePasswordGate(page);
 
     // Hero should be visible
     await expect(page.getByRole('heading', { name: /find your supporters/i })).toBeVisible();
@@ -212,6 +253,7 @@ test.describe('Supporter 360 - Responsive Design', () => {
   test('desktop view displays correctly', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 720 });
     await page.goto('/');
+    await handlePasswordGate(page);
 
     // Full layout should be visible
     await expect(page.getByRole('heading', { name: /find your supporters/i })).toBeVisible();

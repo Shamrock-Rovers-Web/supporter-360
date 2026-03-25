@@ -23,6 +23,7 @@ import {
 import { AdminMergeRequest } from '@supporter360/shared';
 import { requireAuth, type AuthContext } from '../../../middleware/auth';
 import { errorResponse, successResponse } from '../../../utils/api-response';
+import { ALLOWED_ORIGINS } from '../../../config/cors';
 
 const supporterRepo = new SupporterRepository();
 
@@ -77,12 +78,16 @@ export const handler = requireAuth(async (
   event: APIGatewayProxyEvent,
   auth: AuthContext
 ) => {
+  const origin = event.headers.origin || event.headers.Origin;
+
   // Ensure only admin role can perform merges
   if (auth.role !== 'admin') {
     return errorResponse(
       'Admin access required for merge operations',
       403,
-      'FORBIDDEN'
+      'FORBIDDEN',
+      undefined,
+      origin
     );
   }
 
@@ -95,7 +100,9 @@ export const handler = requireAuth(async (
       return errorResponse(
         'Invalid JSON in request body',
         400,
-        'INVALID_JSON'
+        'INVALID_JSON',
+        undefined,
+        origin
       );
     }
 
@@ -105,7 +112,9 @@ export const handler = requireAuth(async (
       return errorResponse(
         validation.error || 'Invalid request',
         400,
-        'INVALID_REQUEST'
+        'INVALID_REQUEST',
+        undefined,
+        origin
       );
     }
 
@@ -125,29 +134,43 @@ export const handler = requireAuth(async (
       primary_email: mergedSupporter.primary_email,
       supporter_type: mergedSupporter.supporter_type,
       message: 'Supporters merged successfully',
-    });
+    }, 200, origin);
   } catch (error) {
     if (error instanceof SupporterNotFoundError) {
       return errorResponse(
         'One or more supporters not found',
         404,
-        'SUPPORTER_NOT_FOUND'
+        'SUPPORTER_NOT_FOUND',
+        undefined,
+        origin
       );
     }
 
     if (error instanceof MergeConflictError) {
       // Merge conflict messages are user-facing and safe to expose
-      return conflictResponse(
-        error.message,
-        { code: 'MERGE_CONFLICT' }
-      );
+      return {
+        statusCode: 409,
+        body: JSON.stringify({
+          success: false,
+          error: error.message,
+          code: 'MERGE_CONFLICT',
+          details: { code: 'MERGE_CONFLICT' },
+        }),
+        headers: {
+          'Access-Control-Allow-Origin': origin || ALLOWED_ORIGINS[0],
+          'Access-Control-Allow-Headers': 'Content-Type,Authorization,X-API-Key',
+          'Access-Control-Allow-Methods': 'GET,POST,PUT,DELETE,OPTIONS',
+        },
+      };
     }
 
     console.error('Merge error:', error);
     return errorResponse(
       'Failed to merge supporters',
       500,
-      'MERGE_ERROR'
+      'MERGE_ERROR',
+      undefined,
+      origin
     );
   }
 });
