@@ -1,67 +1,110 @@
 # Supporter 360
 
-Single pane of glass for Shamrock Rovers supporter data across ticketing, shop, membership, and email engagement.
+A unified supporter data platform for Shamrock Rovers FC.
 
 ## Overview
 
-Supporter 360 is an internal staff tool that consolidates supporter interactions from multiple systems into a unified view:
+Supporter 360 consolidates supporter interactions from multiple systems into a single view:
 
-- **Shopify** - Shop purchases and customer data
-- **Future Ticketing** - Match tickets and stadium entry logs
-- **Stripe** - One-off payments and arrears
+- **Shopify** - Merchandise purchases and customer data
+- **Future Ticketing** - Match tickets and stadium entry
+- **Stripe** - One-off payments
 - **GoCardless** - Direct debit membership payments
-- **Mailchimp** - Email engagement and multi-audience tag management
+- **Mailchimp** - Email engagement and audience management
+
+**Current Status**: Production infrastructure deployed. Webhook integrations ready for configuration.
 
 ## Architecture
 
 ### Serverless AWS Stack
 
-- **API Gateway** - REST API endpoints
-- **Lambda Functions** - Webhook handlers, processors, and API handlers
-- **SQS + DLQ** - Event queue with dead letter queue for retries
-- **RDS PostgreSQL** - Primary database
-- **S3** - Raw webhook payload storage
-- **EventBridge** - Scheduled reconciliation jobs
-
-### Data Flow
-
 ```
-Webhook → API Gateway → Lambda (Webhook Handler) → SQS → Lambda (Processor) → PostgreSQL
-                                                            ↓
-                                                         S3 (Raw Payload Archive)
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│   External  │────▶│ API Gateway │────▶│   Lambda    │
+│   Webhooks   │     │  (REST API)  │     │  (Handlers) │
+└─────────────┘     └─────────────┘     └──────┬──────┘
+                                                    │
+                    ┌───────────────▼────────────────┐
+                    │         SQS Queue            │
+                    │   (Event Buffering)          │
+                    └───────────────┬──────────────┘
+                                    │
+                    ┌───────────────▼────────────────┐
+                    │   Lambda Processor          │
+                    │   (Business Logic)           │
+                    └───────────────┬──────────────┘
+                                    │
+                    ┌───────────────▼────────────────┐
+                    │   RDS PostgreSQL 15         │
+                    │   (Primary Database)         │
+                    └──────────────────────────────┘
+                                    │
+                    ┌───────────────▼────────────────┐
+                    │   S3 (Payload Archive)        │
+                    │   (90-day Glacier tier)       │
+                    └──────────────────────────────┘
 ```
+
+### AWS Components
+
+| Component | Purpose |
+|-----------|---------|
+| API Gateway | REST API for webhooks and public endpoints |
+| Lambda (Node.js 18) | Webhook handlers, processors, API handlers |
+| SQS + DLQ | Event queues with 14-day retention |
+| RDS PostgreSQL 15 | Primary database (Serverless v2, 2-4 ACU) |
+| S3 | Raw webhook payload archiving |
+| WAF | API protection with rate limiting |
+| Secrets Manager | Database credentials and webhook secrets |
+| VPC | Network isolation with public subnets |
+
+### Data Model
+
+**Supporter Identity**
+- `supporter_id` (UUID) - Primary identity
+- Email NOT unique (supports family/shared emails via `email_alias` table)
+- `linked_ids` JSONB stores external system references
+
+**Event Deduplication**
+- UNIQUE constraint on `(source_system, external_id)`
+- Idempotent event processing
 
 ## Project Structure
 
 ```
-supporter-view/
+supporter-360/
 ├── packages/
-│   ├── backend/           # Lambda functions and business logic
+│   ├── backend/           # Lambda functions
 │   │   ├── src/
-│   │   │   ├── db/        # Database connection and repositories
-│   │   │   ├── handlers/  # Lambda handlers
+│   │   │   ├── db/
+│   │   │   │   ├── connection.ts
+│   │   │   │   └── repositories/
+│   │   │   ├── handlers/
 │   │   │   │   ├── webhooks/    # Webhook ingestion
-│   │   │   │   ├── processors/  # Event processors
-│   │   │   │   └── api/         # API endpoints
-│   │   │   └── services/        # Business logic services
+│   │   │   │   ├── processors/   # Event processing
+│   │   │   │   └── api/        # API endpoints
+│   │   │   └── services/
 │   │   └── package.json
-│   ├── database/          # Database schema and migrations
+│   ├── database/          # Schema
 │   │   ├── schema.sql
 │   │   └── package.json
-│   ├── infrastructure/    # AWS CDK infrastructure
+│   ├── infrastructure/    # AWS CDK
 │   │   ├── bin/
 │   │   ├── lib/
+│   │   │   └── supporter360-stack.ts
 │   │   └── package.json
-│   ├── frontend/          # React UI (future)
-│   └── shared/            # Shared types and utilities
-│       ├── src/
-│       │   └── types.ts
-│       └── package.json
-├── package.json           # Root package.json (workspace)
-└── README.md
+│   ├── frontend/          # React UI (planned)
+│   └── shared/            # TypeScript types
+├── docs/                # Documentation
+│   ├── WEBHOOK-SETUP-GUIDE.md
+│   ├── deployment.md
+│   └── security-hardening.md
+├── CLAUDE.md
+├── NOTES.md
+└── package.json
 ```
 
-## Getting Started
+## Quick Start
 
 ### Prerequisites
 
@@ -69,203 +112,176 @@ supporter-view/
 - npm 9+
 - AWS CLI configured
 - AWS CDK CLI (`npm install -g aws-cdk`)
-- PostgreSQL client (for local development)
+- PostgreSQL client
 
 ### Installation
 
-1. Clone the repository:
 ```bash
-cd supporter-view
-```
-
-2. Install dependencies:
-```bash
+# Clone and install
+git clone <repo-url>
+cd supporter-360
 npm install
-```
 
-3. Build all packages:
-```bash
+# Build all packages
 npm run build
 ```
 
 ### Database Setup
 
-1. The database schema is in `packages/database/schema.sql`
-
-2. Connect to your PostgreSQL database and run the schema:
 ```bash
+# Apply schema to PostgreSQL
 psql -h <DB_HOST> -U <DB_USER> -d supporter360 -f packages/database/schema.sql
 ```
 
 ### AWS Deployment
 
-1. Configure AWS credentials:
 ```bash
+# Configure AWS credentials
 aws configure
-```
 
-2. Bootstrap CDK (first time only):
-```bash
+# Bootstrap CDK (first time only)
 cd packages/infrastructure
 npx cdk bootstrap
-```
 
-3. Deploy the stack:
-```bash
+# Deploy the stack
 npx cdk deploy
 ```
 
-4. Note the outputs:
-   - API Gateway URL
-   - Database endpoint
-   - Database secret ARN
-   - S3 bucket name
-
-### Environment Variables
-
-Set these in Lambda function environment:
-
-```bash
-DB_HOST=<RDS_ENDPOINT>
-DB_PORT=5432
-DB_NAME=supporter360
-DB_USER=postgres
-DB_PASSWORD=<FROM_SECRETS_MANAGER>
-RAW_PAYLOADS_BUCKET=supporter360-raw-payloads-<ACCOUNT_ID>
-GOCARDLESS_ACCESS_TOKEN=<YOUR_TOKEN>
-```
+**Deployment Outputs:**
+- `ApiUrl` - API Gateway endpoint
+- `DatabaseEndpoint` - RDS endpoint
+- `DatabaseSecretArn` - Secrets Manager ARN
+- `RawPayloadsBucketName` - S3 bucket for payload archiving
 
 ## API Endpoints
 
-### Public API
+### Public API (Requires X-API-Key header)
 
-- `GET /search?q={query}` - Search supporters by email/name/phone
-- `GET /supporters/{id}` - Get supporter profile
-- `GET /supporters/{id}/timeline` - Get supporter timeline
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/search?q={query}` | Search supporters by email/name/phone |
+| GET | `/supporters/{id}` | Get supporter profile |
+| GET | `/supporters/{id}/timeline` | Get supporter event timeline |
 
 ### Webhook Endpoints
 
-- `POST /webhooks/shopify` - Shopify webhooks
-- `POST /webhooks/stripe` - Stripe webhooks
-- `POST /webhooks/gocardless` - GoCardless webhooks
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/webhooks/shopify` | Shopify order/customer events |
+| POST | `/webhooks/stripe` | Stripe payment events |
+| POST | `/webhooks/gocardless` | GoCardless mandate events |
+| POST | `/webhooks/mailchimp` | Mailchimp email events |
 
 ### Admin Endpoints
 
-- `POST /admin/merge` - Merge two supporter records
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/admin/merge` | Merge two supporter records |
+| GET | `/admin/gdpr/export/{email}` | Export supporter data (GDPR) |
+| DELETE | `/admin/gdpr/delete/{email}` | Delete supporter data (GDPR) |
+
+## Webhook Configuration
+
+See [docs/WEBHOOK-SETUP-GUIDE.md](docs/WEBHOOK-SETUP-GUIDE.md) for detailed setup instructions.
+
+### Quick Reference
+
+**Shopify** (`/webhooks/shopify`)
+- Events: `orders/create`, `orders/paid`, `customers/create`, `customers/update`
+- Verification: HMAC-SHA256 signature
+
+**Stripe** (`/webhooks/stripe`)
+- Events: All payment and customer events
+- Verification: HMAC-SHA256 signature with tolerance
+
+**GoCardless** (`/webhooks/gocardless`)
+- Events: All mandate events
+- Verification: HMAC-SHA256 signature
+
+**Mailchimp** (`/webhooks/mailchimp`)
+- Events: Subscribe, unsubscribe, campaign events
+- Verification: Basic auth or signature
 
 ## Database Schema
 
 ### Core Tables
 
-- `supporter` - Supporter identity and linked IDs
-- `email_alias` - Email addresses (supports shared emails)
-- `event` - Unified event timeline
-- `membership` - Membership status and payments
-- `mailchimp_membership` - Multi-audience Mailchimp mappings
-- `future_ticketing_product_mapping` - Product categorization
-- `audit_log` - Admin action audit trail
-- `config` - System configuration
-
-## Webhook Configuration
-
-### Shopify
-
-Configure webhooks in Shopify Admin → Settings → Notifications:
-
-- `orders/create` → `{API_URL}/webhooks/shopify`
-- `orders/paid` → `{API_URL}/webhooks/shopify`
-- `orders/fulfilled` → `{API_URL}/webhooks/shopify`
-- `customers/create` → `{API_URL}/webhooks/shopify`
-- `customers/update` → `{API_URL}/webhooks/shopify`
-
-### Stripe
-
-Configure webhooks in Stripe Dashboard → Developers → Webhooks:
-
-- Endpoint URL: `{API_URL}/webhooks/stripe`
-- Events to listen:
-  - `payment_intent.*`
-  - `charge.*`
-  - `customer.*`
-  - `invoice.*`
-  - `checkout.session.*`
-
-### GoCardless
-
-Configure webhooks in GoCardless Dashboard → Developers → Webhooks:
-
-- Endpoint URL: `{API_URL}/webhooks/gocardless`
-- All events enabled
-
-## Features Implemented
-
-- Webhook ingestion for Shopify, Stripe, and GoCardless
-- Event queue with retry and DLQ
-- Supporter search by email/name/phone
-- Unified profile view
-- Timeline view with filtering
-- Database repositories for supporter and event data
-- AWS CDK infrastructure as code
-- S3 raw payload archiving
-
-## Features Pending
-
-- Future Ticketing integration (polling/API)
-- Mailchimp integration (multi-audience + tags + click events)
-- Supporter type derivation logic
-- Admin UI for merge/split operations
-- Reconciliation jobs for missed webhooks
-- Backfill scripts for historical data
-- Frontend UI (React/Next.js)
-- Authentication and authorization
-
-## Development
-
-### Running Locally
-
-For local development, you can use AWS SAM or LocalStack to test Lambda functions locally.
-
-### Testing
-
-```bash
-npm run test
-```
-
-### Linting
-
-```bash
-npm run lint
-```
-
-## Deployment
-
-Deploy updates:
-
-```bash
-cd packages/backend
-npm run build
-
-cd ../infrastructure
-npx cdk deploy
-```
-
-## Monitoring
-
-- CloudWatch Logs for Lambda function logs
-- SQS DLQ monitoring for failed events
-- CloudWatch Metrics for API Gateway and Lambda
+| Table | Purpose |
+|-------|---------|
+| `supporter` | Primary identity with linked_ids JSONB |
+| `email_alias` | Multiple emails per supporter |
+| `event` | Unified timeline with deduplication |
+| `membership` | Membership status and payments |
+| `mailchimp_membership` | Multi-audience Mailchimp mappings |
+| `audit_log` | Admin action audit trail |
+| `config` | System configuration values |
 
 ## Security
 
-- All webhooks should use signature verification (implement in production)
-- Database credentials stored in AWS Secrets Manager
-- VPC isolation for Lambda and RDS
-- S3 bucket encryption enabled
-- No public access to S3 buckets
+### Implemented
 
-## Support
+- ✅ Webhook signature verification (Shopify, Stripe, GoCardless)
+- ✅ API key authentication via Lambda authorizer
+- ✅ WAF rate limiting and common attack protection
+- ✅ Database credentials in Secrets Manager
+- ✅ VPC isolation for Lambda and RDS
+- ✅ S3 bucket encryption
+- ✅ GDPR endpoints for data export and deletion
 
-For issues and questions, contact the development team.
+### Configuration Required
+
+- Webhook secrets in Secrets Manager
+- API keys for admin access
+- Email subscription for security alerts
+
+## Monitoring
+
+- **CloudWatch Logs** - Lambda function logs
+- **SQS DLQ** - Failed event queue monitoring
+- **CloudWatch Metrics** - API Gateway and Lambda performance
+- **WAF** - Request logging and blocked requests
+
+## Development
+
+### Commands
+
+```bash
+npm run build          # Build all packages
+npm test             # Run tests
+npm run lint           # Lint code
+```
+
+### Local Development
+
+Use AWS SAM or LocalStack for local Lambda testing:
+
+```bash
+npm install -g aws-sam
+sam local start-api
+```
+
+## Documentation
+
+- [CLAUDE.md](CLAUDE.md) - AI assistant instructions
+- [NOTES.md](NOTES.md) - Current status and notes
+- [docs/WEBHOOK-SETUP-GUIDE.md](docs/WEBHOOK-SETUP-GUIDE.md) - Webhook setup
+- [docs/deployment.md](docs/deployment.md) - Deployment guide
+- [docs/security-hardening.md](docs/security-hardening.md) - Security implementation
+
+## Status
+
+| Component | Status |
+|-----------|--------|
+| Infrastructure | ✅ Deployed |
+| Database | ✅ Schema applied |
+| Webhook Handlers | ✅ Implemented |
+| Event Processors | ✅ Implemented |
+| API Endpoints | ✅ Implemented |
+| Security | ✅ Hardened |
+| GDPR Compliance | ✅ Endpoints ready |
+| Frontend | 🔲 Planned |
+| Future Ticketing | 🔲 Planned |
+| Mailchimp Processor | 🔲 Planned |
 
 ## License
 
