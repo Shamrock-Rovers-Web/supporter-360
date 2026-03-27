@@ -5,6 +5,9 @@ interface ProfileHeaderProps {
 }
 
 export function ProfileHeader({ profile }: ProfileHeaderProps) {
+  // Handle null/undefined flags
+  const flags = profile.flags || {};
+
   return (
     <div className="bg-white rounded-lg shadow p-6 mb-6">
       <div className="flex justify-between items-start">
@@ -16,7 +19,7 @@ export function ProfileHeader({ profile }: ProfileHeaderProps) {
           {profile.phone && (
             <p className="text-gray-600">{profile.phone}</p>
           )}
-          {profile.emails.length > 1 && (
+          {profile.emails && profile.emails.length > 1 && (
             <p className="text-sm text-gray-500 mt-1">
               +{profile.emails.length - 1} additional email(s)
             </p>
@@ -24,9 +27,9 @@ export function ProfileHeader({ profile }: ProfileHeaderProps) {
         </div>
         <div className="text-right">
           <span className="inline-block px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
-            {profile.supporter_type}
+            {profile.supporter_type || 'Unknown'}
           </span>
-          {profile.flags.shared_email && (
+          {flags.shared_email && (
             <span className="ml-2 inline-block px-2 py-1 bg-yellow-100 text-yellow-800 rounded text-xs">
               Shared Email
             </span>

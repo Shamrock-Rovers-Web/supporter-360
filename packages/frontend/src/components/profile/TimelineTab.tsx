@@ -53,7 +53,7 @@ export function TimelineTab({ supporterId }: TimelineTabProps) {
                 {new Date(event.event_time).toLocaleString('en-GB')}
               </span>
             </div>
-            {event.amount && (
+            {event.amount != null && !isNaN(event.amount) && (
               <p className="mt-1 font-medium">
                 €{event.amount.toFixed(2)}
               </p>

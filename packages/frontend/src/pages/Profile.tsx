@@ -266,7 +266,7 @@ function PremiumProfileHeader({ profile, onRefresh }: PremiumProfileHeaderProps)
         {/* Avatar */}
         <div className="-mt-16 relative z-10">
           <Avatar name={profile.name || ''} size="xl" />
-          {profile.supporter_type !== 'Unknown' && (
+          {profile.supporter_type && profile.supporter_type !== 'Unknown' && (
             <div className="absolute -bottom-1 -right-1">
               <div className="w-6 h-6 bg-brand-gold-400 rounded-full flex items-center justify-center shadow-md">
                 <span className="text-xs">✓</span>
@@ -409,7 +409,15 @@ function OverviewSection({ profile }: OverviewSectionProps) {
     });
   };
 
-  const membershipStatus = profile.overview?.membership?.status;
+  // Safe toFixed helper that handles null/undefined/NaN
+  const safeToFixed = (value: unknown, digits: number = 2): string | null => {
+    if (value === null || value === undefined) return null;
+    const num = typeof value === 'number' ? value : Number(value);
+    if (isNaN(num)) return null;
+    return num.toFixed(digits);
+  };
+
+  const membershipStatus = profile.overview?.membership?.status ?? null;
   const membershipVariant = membershipStatus === 'Active' ? 'success' : 'muted';
 
   return (
@@ -425,8 +433,8 @@ function OverviewSection({ profile }: OverviewSectionProps) {
         icon="🛍️"
         value={formatDate(profile.overview?.last_shop_order?.event_time)}
         subtitle={
-          profile.overview?.last_shop_order?.amount
-            ? `€${Number(profile.overview.last_shop_order.amount).toFixed(2)}`
+          safeToFixed(profile.overview?.last_shop_order?.amount)
+            ? `€${safeToFixed(profile.overview.last_shop_order.amount)}`
             : undefined
         }
         variant={profile.overview?.last_shop_order ? 'default' : 'muted'}

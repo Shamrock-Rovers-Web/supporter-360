@@ -147,8 +147,8 @@ function EventCard({ event }: EventCardProps) {
     });
   };
 
-  const formatAmount = (amount: number | null) => {
-    if (amount === null) return null;
+  const formatAmount = (amount: number | null | undefined): string | null => {
+    if (amount === null || amount === undefined || isNaN(amount)) return null;
     return `€${amount.toFixed(2)}`;
   };
 
@@ -255,7 +255,7 @@ function EventCard({ event }: EventCardProps) {
     >
       {/* Icon */}
       <div className={`w-10 h-10 rounded-full ${systemConfig.bg} border ${systemConfig.border} flex items-center justify-center mr-4 flex-shrink-0`}>
-        <span className="text-lg" style={{ fontSize: '1.125rem', lineHeight: 1.2 }}>{typeIcon}</span>
+        <span className="text-lg leading-tight">{typeIcon}</span>
       </div>
 
       {/* Content */}
