@@ -25,6 +25,7 @@ const entryPoints = [
   { source: 'handlers/api/profile.handler', target: 'handlers/api/profile' },
   { source: 'handlers/api/timeline.handler', target: 'handlers/api/timeline' },
   { source: 'handlers/api/admin/merge.handler', target: 'handlers/api/admin/merge' },
+  { source: 'handlers/api/admin/validate-ft.handler', target: 'handlers/api/admin/validate-ft' },
 
   // Admin Handlers
   { source: 'handlers/admin/verify-db.handler', target: 'handlers/admin/verify-db' },

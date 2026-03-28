@@ -3,6 +3,8 @@ import { useParams } from 'react-router-dom';
 import { useSupporterProfile } from '../hooks/useSupporters';
 import { ProfileHeader } from '../components/profile/ProfileHeader';
 import { TimelineTab } from '../components/profile/TimelineTab';
+import { PurchasesTab } from '../components/profile/PurchasesTab';
+import { StadiumEntryTab } from '../components/profile/StadiumEntryTab';
 
 type Tab = 'overview' | 'timeline' | 'purchases' | 'membership' | 'stadium' | 'mailchimp';
 
@@ -60,21 +62,23 @@ export function ProfilePage() {
         </div>
         <div className="p-6">
           {activeTab === 'timeline' && <TimelineTab supporterId={profile.supporter_id} />}
+          {activeTab === 'purchases' && <PurchasesTab supporterId={profile.supporter_id} />}
+          {activeTab === 'stadium' && <StadiumEntryTab supporterId={profile.supporter_id} />}
           {activeTab === 'overview' && (
             <div className="grid grid-cols-2 gap-4">
               <div className="p-4 bg-gray-50 rounded">
                 <h3 className="font-medium text-gray-700">Last Ticket Order</h3>
                 <p className="text-lg font-semibold">
-                  {profile.last_ticket_order
-                    ? new Date(profile.last_ticket_order.event_time).toLocaleDateString('en-GB')
+                  {profile.overview?.last_ticket_order?.event_time
+                    ? new Date(profile.overview.last_ticket_order.event_time).toLocaleDateString('en-GB')
                     : 'Never'}
                 </p>
               </div>
               <div className="p-4 bg-gray-50 rounded">
                 <h3 className="font-medium text-gray-700">Last Shop Order</h3>
                 <p className="text-lg font-semibold">
-                  {profile.last_shop_order
-                    ? new Date(profile.last_shop_order.event_time).toLocaleDateString('en-GB')
+                  {profile.overview?.last_shop_order?.event_time
+                    ? new Date(profile.overview.last_shop_order.event_time).toLocaleDateString('en-GB')
                     : 'Never'}
                 </p>
               </div>

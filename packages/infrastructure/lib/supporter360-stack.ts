@@ -490,6 +490,17 @@ export class Supporter360Stack extends cdk.Stack {
       environment: commonEnvironment,
     });
 
+    const validateFtHandler = new lambda.Function(this, 'ValidateFtHandler', {
+      runtime: lambda.Runtime.NODEJS_18_X,
+      handler: 'handlers/api/admin/validate-ft.handler',
+      code: lambda.Code.fromAsset('../backend/dist'),
+      timeout: cdk.Duration.seconds(30),
+      vpc,
+      vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
+      securityGroups: [lambdaSecurityGroup],
+      environment: commonEnvironment,
+    });
+
     // ========================================
     // Scheduled Functions (PRIVATE_ISOLATED subnets with VPC endpoints)
     // ========================================
@@ -500,8 +511,10 @@ export class Supporter360Stack extends cdk.Stack {
       handler: 'handlers/scheduled/future-ticketing-poller.handler',
       code: lambda.Code.fromAsset('../backend/dist'),
       timeout: cdk.Duration.seconds(300),
+      memorySize: 256, // Increased memory for FT API polling
       vpc,
-      vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
+      vpcSubnets: { subnetType: ec2.SubnetType.PUBLIC },
+      allowPublicSubnet: true, // Allow Lambda in public subnet for external API access
       securityGroups: [lambdaSecurityGroup],
       environment: {
         ...commonEnvironment,
@@ -580,6 +593,21 @@ export class Supporter360Stack extends cdk.Stack {
       description: 'Trigger daily reconciliation at 2 AM UTC',
       schedule: events.Schedule.cron({ hour: '2', minute: '0' }),
       targets: [new targets.LambdaFunction(reconciler)],
+    });
+
+
+    // Seed Data Function - for populating test data
+    const seedDataFunction = new lambda.Function(this, 'SeedData', {
+      runtime: lambda.Runtime.NODEJS_18_X,
+      handler: 'handlers/scheduled/seed.handler',
+      code: lambda.Code.fromAsset('../backend/dist'),
+      timeout: cdk.Duration.seconds(120),
+      memorySize: 256,
+      vpc,
+      vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
+      securityGroups: [lambdaSecurityGroup],
+      environment: commonEnvironment,
+      description: 'Seed database with test supporter data',
     });
 
     // ========================================
@@ -718,8 +746,9 @@ export class Supporter360Stack extends cdk.Stack {
     // ========================================
     // CORS configuration - Production origins only (localhost removed for security)
     const allowedOrigins = [
-      'https://shamrockrovers.ie',  // Production domain
-      'http://supporter360-frontend-950596328856.s3-website-eu-west-1.amazonaws.com',  // S3 static website
+      'https://shamrockrovers.ie',  // Main production domain
+      'https://360.shamrockrovers.ie',  // Supporter 360 subdomain
+      'http://supporter360-frontend-950596328856.s3-website-eu-west-1.amazonaws.com',  // S3 static website (dev/testing)
     ];
 
     const api = new apigateway.RestApi(this, 'Supporter360Api', {
@@ -826,25 +855,66 @@ export class Supporter360Stack extends cdk.Stack {
       authorizationType: apigateway.AuthorizationType.CUSTOM,
     });
 
+    const validateFtResource = adminResource.addResource('validate-ft');
+    validateFtResource.addMethod('GET', new apigateway.LambdaIntegration(validateFtHandler), {
+      authorizer,
+      authorizationType: apigateway.AuthorizationType.CUSTOM,
+    });
+
     // ========================================
-    // Frontend Hosting (S3 Static Website - no CloudFront)
+    // Frontend Hosting (S3 with Custom Domain for CloudFlare)
     // ========================================
+    // Bucket name MUST match custom domain for S3 virtual-hosted-style requests
     const frontendBucket = new s3.Bucket(this, 'FrontendBucket', {
-      bucketName: `supporter360-frontend-${cdk.Stack.of(this).account}`,
+      bucketName: '360.shamrockrovers.ie',
       encryption: s3.BucketEncryption.S3_MANAGED,
+      // Enable static website hosting for SPA routing
       websiteIndexDocument: 'index.html',
-      websiteErrorDocument: 'index.html', // SPA routing - all errors go to index.html
-      removalPolicy: cdk.RemovalPolicy.DESTROY, // Allow deletion for dev environment
-      autoDeleteObjects: true,
-      // For static website hosting, we need to disable blockPublicAccess
-      blockPublicAccess: new s3.BlockPublicAccess({
+      websiteErrorDocument: 'index.html', // SPA routing - return index.html for 404s so React Router can handle client-side routes
+      removalPolicy: cdk.RemovalPolicy.RETAIN, // Don't auto-delete production bucket
+      // Block all public access - will use bucket policy for CloudFlare IPs only
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      versioned: false,
+      objectOwnership: s3.ObjectOwnership.BUCKET_OWNER_PREFERRED,
+      publicAccessBlockConfiguration: {
         blockPublicAcls: false,
-        ignorePublicAcls: false,
+        ignorePublicAcls: true,
         blockPublicPolicy: false,
         restrictPublicBuckets: false,
-      }),
-      // Add bucket policy for public read access
+      },
     });
+
+    // Bucket policy to allow CloudFlare to read objects
+    // CloudFlare will connect via HTTPS to S3 REST API endpoint
+    frontendBucket.addToResourcePolicy(new iam.PolicyStatement({
+      sid: 'AllowCloudFlareHTTPSRead',
+      effect: iam.Effect.ALLOW,
+      principals: [new iam.AnyPrincipal()],
+      actions: ['s3:GetObject'],
+      resources: [frontendBucket.arnForObjects('*')],
+      conditions: {
+        IpAddress: {
+          'aws:SourceIp': [
+            // CloudFlare IPv4 ranges (https://www.cloudflare.com/ips-v4)
+            '173.245.48.0/20',
+            '103.21.244.0/22',
+            '103.22.200.0/22',
+            '103.31.4.0/22',
+            '141.101.64.0/18',
+            '108.162.192.0/18',
+            '190.93.240.0/20',
+            '188.114.96.0/20',
+            '197.234.240.0/22',
+            '198.41.128.0/17',
+            '162.158.0.0/15',
+            '104.16.0.0/13',
+            '104.24.0.0/14',
+            '172.64.0.0/13',
+            '131.0.72.0/22',
+          ],
+        },
+      },
+    }));
 
     // ========================================
     // CloudWatch Alarms for Serverless v2
@@ -906,8 +976,8 @@ export class Supporter360Stack extends cdk.Stack {
     });
 
     new cdk.CfnOutput(this, 'FrontendUrl', {
-      value: frontendBucket.bucketWebsiteUrl,
-      description: 'Frontend static website URL',
+      value: 'https://360.shamrockrovers.ie',
+      description: 'Frontend production URL - CloudFlare CNAME points to bucket name',
     });
   }
 }

@@ -69,7 +69,7 @@ export async function getSupporterProfile(id: string) {
 export async function getSupporterTimeline(id: string, eventTypes?: string[], limit?: number, offset?: number) {
   const params = new URLSearchParams();
   if (eventTypes?.length) {
-    eventTypes.forEach(t => params.append('event_types', t));
+    params.set('types', eventTypes.join(','));
   }
   if (limit) params.set('limit', limit.toString());
   if (offset) params.set('offset', offset.toString());
